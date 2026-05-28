@@ -1,0 +1,3168 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kalkulator Technologa Oczyszczalni — Kącik Technologa z przypadku</title>
+<meta name="description" content="Interaktywny kalkulator wzorów dla technologów oczyszczalni ścieków. Osad czynny, bilans tlenu, strącanie P, SBR, kinetyka.">
+
+<!-- KaTeX dla wzorów matematycznych -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body, {delimiters: [{left:'$$', right:'$$', display:true},{left:'$', right:'$', display:false}], strict: false, throwOnError: false, errorColor: '#f85149'});"></script>
+
+<!-- Czcionki: JetBrains Mono dla danych, Space Mono dla tytułów, IBM Plex Sans dla opisów + OpenDyslexic -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Space+Mono:wght@400;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/opendyslexic@0.0.1/open-dyslexic.css" rel="stylesheet">
+
+<style>
+:root {
+  /* Motyw ciemny - terminal procesowy */
+  --bg: #0d1117;
+  --bg-panel: #161b22;
+  --bg-elev: #1c232c;
+  --border: #30363d;
+  --border-strong: #484f58;
+  --text: #c9d1d9;
+  --text-dim: #8b949e;
+  --text-muted: #6e7681;
+  --accent: #d29922;      /* bursztynowy - jak HMI */
+  --accent-soft: #d2992233;
+  --ok: #3fb950;          /* zielony fosforowy */
+  --warn: #db6d28;
+  --err: #f85149;
+  --info: #58a6ff;
+  --font-mono: 'JetBrains Mono', 'Courier New', monospace;
+  --font-display: 'Space Mono', monospace;
+  --font-body: 'IBM Plex Sans', system-ui, sans-serif;
+  --font-size-base: 15px;
+}
+
+body.theme-light {
+  --bg: #f5f1e8;
+  --bg-panel: #ffffff;
+  --bg-elev: #fafaf5;
+  --border: #d6cfbf;
+  --border-strong: #a89f8a;
+  --text: #1a1a1a;
+  --text-dim: #4a4a4a;
+  --text-muted: #6e6e6e;
+  --accent: #8a5a00;
+  --accent-soft: #8a5a0022;
+  --ok: #1a7a2e;
+  --warn: #b85a1a;
+  --err: #c0392b;
+  --info: #1f6feb;
+}
+
+body.font-dyslexic {
+  --font-body: 'OpenDyslexic', sans-serif;
+  --font-mono: 'OpenDyslexic Mono', 'JetBrains Mono', monospace;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { font-size: var(--font-size-base); }
+
+body {
+  font-family: var(--font-body);
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.55;
+  min-height: 100vh;
+  background-image:
+    linear-gradient(rgba(210,153,34,0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(210,153,34,0.025) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+/* === HEADER === */
+header.app-header {
+  border-bottom: 2px solid var(--border-strong);
+  background: var(--bg-panel);
+  padding: 1rem 1.5rem;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.brand-mark {
+  width: 40px; height: 40px;
+  border: 2px solid var(--accent);
+  display: grid; place-items: center;
+  font-family: var(--font-display);
+  font-weight: 700;
+  color: var(--accent);
+  font-size: 1.1rem;
+  background: var(--bg);
+}
+
+.brand-text h1 {
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--text);
+}
+
+.brand-text .subtitle {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.header-controls {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.ctrl-btn {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  padding: 0.4rem 0.7rem;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  transition: all 0.15s;
+}
+
+.ctrl-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.ctrl-btn.active {
+  background: var(--accent);
+  color: var(--bg);
+  border-color: var(--accent);
+}
+
+.font-size-control {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.font-size-control input[type="range"] {
+  width: 70px;
+  accent-color: var(--accent);
+}
+
+/* === LAYOUT === */
+.app-layout {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  min-height: calc(100vh - 75px);
+}
+
+/* === SIDEBAR === */
+nav.sidebar {
+  background: var(--bg-panel);
+  border-right: 2px solid var(--border-strong);
+  padding: 1rem 0;
+  overflow-y: auto;
+  position: sticky;
+  top: 75px;
+  height: calc(100vh - 75px);
+}
+
+.nav-section {
+  margin-bottom: 1.5rem;
+}
+
+.nav-section-title {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  padding: 0 1.25rem 0.4rem;
+  border-bottom: 1px dashed var(--border);
+  margin: 0 0 0.4rem;
+}
+
+.nav-item {
+  display: block;
+  padding: 0.55rem 1.25rem 0.55rem 1rem;
+  color: var(--text-dim);
+  text-decoration: none;
+  font-size: 0.92rem;
+  border-left: 3px solid transparent;
+  cursor: pointer;
+  transition: all 0.12s;
+  font-family: var(--font-body);
+}
+
+.nav-item:hover {
+  background: var(--bg-elev);
+  color: var(--text);
+  border-left-color: var(--border-strong);
+}
+
+.nav-item.active {
+  background: var(--bg-elev);
+  color: var(--accent);
+  border-left-color: var(--accent);
+  font-weight: 600;
+}
+
+.nav-item-code {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  margin-right: 0.5rem;
+}
+
+.nav-item.active .nav-item-code {
+  color: var(--accent);
+}
+
+/* === MAIN === */
+main.workspace {
+  padding: 1.5rem 2rem;
+  max-width: 1200px;
+}
+
+.module-header {
+  border-bottom: 2px solid var(--border-strong);
+  padding-bottom: 1rem;
+  margin-bottom: 1.5rem;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.module-title {
+  font-family: var(--font-display);
+  font-size: 1.4rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.module-code {
+  font-family: var(--font-mono);
+  color: var(--accent);
+  font-size: 0.85rem;
+}
+
+.module-intro {
+  color: var(--text-dim);
+  margin-bottom: 1.5rem;
+  font-size: 0.95rem;
+  max-width: 720px;
+}
+
+/* === KALKULATORY === */
+.calc-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
+  gap: 1rem;
+}
+
+.calc-card {
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+}
+
+.calc-card-header {
+  padding: 0.75rem 1rem;
+  background: var(--bg-elev);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.calc-card-title {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--text);
+}
+
+.calc-card-tag {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  background: var(--accent-soft);
+  color: var(--accent);
+  padding: 0.15rem 0.45rem;
+  border: 1px solid var(--accent);
+  letter-spacing: 0.05em;
+}
+
+.calc-body {
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.input-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.input-label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.input-label-main {
+  font-size: 0.88rem;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.input-label-symbol {
+  font-family: var(--font-mono);
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.input-label-desc {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+
+.input-control {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+input[type="number"], select {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 0.4rem 0.5rem;
+  font-family: var(--font-mono);
+  font-size: 0.9rem;
+  width: 110px;
+  text-align: right;
+}
+
+select {
+  width: auto;
+  text-align: left;
+  cursor: pointer;
+}
+
+input[type="number"]:focus, select:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-soft);
+}
+
+.input-unit {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  min-width: 50px;
+}
+
+.calc-divider {
+  border: 0;
+  border-top: 1px dashed var(--border);
+  margin: 0.3rem 0;
+}
+
+/* === RESULT === */
+.calc-result {
+  margin-top: 0.8rem;
+  padding: 0.8rem 1rem;
+  background: var(--bg);
+  border: 2px solid var(--accent);
+  border-left-width: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.calc-result-label {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.calc-result-value {
+  font-family: var(--font-mono);
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1;
+}
+
+.calc-result-unit {
+  font-size: 1rem;
+  color: var(--text-dim);
+  margin-left: 0.3rem;
+}
+
+.calc-result-extra {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: var(--text-dim);
+  margin-top: 0.2rem;
+}
+
+.interpretation {
+  margin-top: 0.6rem;
+  padding: 0.55rem 0.75rem;
+  font-size: 0.85rem;
+  border-left: 3px solid var(--info);
+  background: var(--bg-elev);
+  color: var(--text-dim);
+}
+
+.interpretation.ok { border-left-color: var(--ok); color: var(--ok); }
+.interpretation.warn { border-left-color: var(--warn); color: var(--warn); }
+.interpretation.err { border-left-color: var(--err); color: var(--err); }
+
+/* === BAZA WIEDZY === */
+.kb-toggle {
+  margin-top: 0.6rem;
+  background: transparent;
+  border: 1px dashed var(--border-strong);
+  color: var(--text-dim);
+  padding: 0.4rem 0.7rem;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  width: 100%;
+  transition: all 0.15s;
+}
+
+.kb-toggle:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.kb-content {
+  display: none;
+  margin-top: 0.6rem;
+  padding: 0.9rem 1rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-top: 2px solid var(--accent);
+  font-size: 0.88rem;
+}
+
+.kb-content.open {
+  display: block;
+}
+
+.kb-formula {
+  background: var(--bg-elev);
+  padding: 0.8rem;
+  margin: 0.5rem 0;
+  border-left: 3px solid var(--accent);
+  overflow-x: auto;
+}
+
+.kb-symbols {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.3rem 0.8rem;
+  margin: 0.5rem 0;
+  font-size: 0.85rem;
+}
+
+.kb-sym {
+  font-family: var(--font-mono);
+  color: var(--accent);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.kb-section-title {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--accent);
+  margin-top: 0.8rem;
+  margin-bottom: 0.3rem;
+  border-bottom: 1px dashed var(--border);
+  padding-bottom: 0.2rem;
+}
+
+.kb-section-title:first-child { margin-top: 0; }
+
+.kb-content p {
+  margin: 0.3rem 0;
+  color: var(--text-dim);
+}
+
+.kb-content ul {
+  margin: 0.3rem 0 0.3rem 1.2rem;
+  color: var(--text-dim);
+}
+
+.kb-content li { margin: 0.15rem 0; }
+
+.kb-ranges {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 0.4rem;
+  margin: 0.5rem 0;
+}
+
+.kb-range {
+  padding: 0.5rem;
+  background: var(--bg-elev);
+  border-left: 3px solid var(--info);
+  font-size: 0.82rem;
+}
+
+.kb-range.ok { border-left-color: var(--ok); }
+.kb-range.warn { border-left-color: var(--warn); }
+.kb-range.err { border-left-color: var(--err); }
+
+.kb-range-label {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  letter-spacing: 0.05em;
+}
+
+.kb-range-value {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  color: var(--text);
+  font-size: 0.95rem;
+}
+
+/* === MODUŁ HISTORII === */
+.history-controls {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+}
+
+.save-btn {
+  background: var(--accent);
+  color: var(--bg);
+  border: 1px solid var(--accent);
+  padding: 0.5rem 0.9rem;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 700;
+  margin-top: 0.5rem;
+  width: 100%;
+}
+
+.save-btn:hover { opacity: 0.85; }
+
+.history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.history-item {
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  padding: 0.7rem 1rem;
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  gap: 0.8rem;
+  align-items: center;
+  font-size: 0.88rem;
+}
+
+.history-date {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.history-calc {
+  color: var(--text);
+}
+
+.history-calc strong {
+  color: var(--accent);
+  font-family: var(--font-mono);
+}
+
+.history-value {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  color: var(--text);
+}
+
+.history-del {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  padding: 0.2rem 0.5rem;
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+}
+
+.history-del:hover {
+  border-color: var(--err);
+  color: var(--err);
+}
+
+.empty-state {
+  padding: 2rem;
+  text-align: center;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  border: 1px dashed var(--border);
+}
+
+/* === FOOTER === */
+footer.app-footer {
+  padding: 1.5rem 2rem;
+  border-top: 1px solid var(--border);
+  text-align: center;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  background: var(--bg-panel);
+}
+
+footer.app-footer a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+footer.app-footer a:hover { text-decoration: underline; }
+
+/* === MOBILE === */
+.mobile-menu-toggle {
+  display: none;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 0.4rem 0.7rem;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+@media (max-width: 900px) {
+  .app-layout { grid-template-columns: 1fr; }
+  nav.sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 260px;
+    height: 100vh;
+    z-index: 200;
+    transform: translateX(-100%);
+    transition: transform 0.25s;
+    padding-top: 4rem;
+  }
+  nav.sidebar.open { transform: translateX(0); }
+  .mobile-menu-toggle { display: block; }
+  main.workspace { padding: 1rem; }
+  .calc-grid { grid-template-columns: 1fr; }
+  header.app-header { padding: 0.75rem 1rem; }
+  .brand-text h1 { font-size: 0.95rem; }
+}
+
+/* === KATEX OVERRIDES === */
+.katex { font-size: 1.05em; }
+.kb-formula .katex-display { margin: 0; }
+
+/* Hide modules not active */
+.module { display: none; }
+.module.active { display: block; }
+
+/* Status indicator */
+.status-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 0.4rem;
+  background: var(--ok);
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+</style>
+</head>
+<body>
+
+<header class="app-header">
+  <div class="brand">
+    <button class="mobile-menu-toggle" id="menuToggle" aria-label="Menu">☰</button>
+    <div class="brand-mark">KT</div>
+    <div class="brand-text">
+      <h1>KALKULATOR TECHNOLOGA</h1>
+      <div class="subtitle"><span class="status-dot"></span>WWTP // v1.0 // PRUDNIK</div>
+    </div>
+  </div>
+  <div class="header-controls">
+    <div class="font-size-control">
+      <span>A</span>
+      <input type="range" id="fontSize" min="13" max="19" value="15" aria-label="Rozmiar czcionki">
+      <span style="font-size:1.1rem">A</span>
+    </div>
+    <button class="ctrl-btn" id="dyslexicToggle" aria-label="Czcionka OpenDyslexic">DYS</button>
+    <button class="ctrl-btn active" id="themeToggle" aria-label="Motyw">DARK</button>
+  </div>
+</header>
+
+<div class="app-layout">
+
+<nav class="sidebar" id="sidebar">
+  <div class="nav-section">
+    <h3 class="nav-section-title">Moduły obliczeniowe</h3>
+    <a class="nav-item active" data-module="osad"><span class="nav-item-code">01</span>Osad czynny</a>
+    <a class="nav-item" data-module="tlen"><span class="nav-item-code">02</span>Bilans tlenu</a>
+    <a class="nav-item" data-module="fosfor"><span class="nav-item-code">03</span>Strącanie P</a>
+    <a class="nav-item" data-module="sbr"><span class="nav-item-code">04</span>SBR</a>
+    <a class="nav-item" data-module="kinetyka"><span class="nav-item-code">05</span>Temp. / C:N:P</a>
+    <a class="nav-item" data-module="denitr"><span class="nav-item-code">06</span>Recyrk. wewn. / DN</a>
+  </div>
+  <div class="nav-section">
+    <h3 class="nav-section-title">Dane</h3>
+    <a class="nav-item" data-module="historia"><span class="nav-item-code">→</span>Historia obliczeń</a>
+    <a class="nav-item" data-module="info"><span class="nav-item-code">?</span>O kalkulatorze</a>
+  </div>
+</nav>
+
+<main class="workspace">
+
+<!-- =================== MODUŁ 01: OSAD CZYNNY =================== -->
+<section class="module active" id="module-osad">
+  <div class="module-header">
+    <div>
+      <div class="module-code">// MODULE 01</div>
+      <h2 class="module-title">Osad czynny</h2>
+    </div>
+  </div>
+  <p class="module-intro">Wskaźniki charakteryzujące osad czynny i jego kondycję sedymentacyjną. SVI, F/M, SRT — trzy filary kontroli procesu. Jeśli któryś z nich zaczyna dryfować, reszta zwykle podąża za nim.</p>
+
+  <div class="calc-grid">
+
+    <!-- SVI -->
+    <div class="calc-card" data-calc-id="svi" data-calc-name="SVI">
+      <div class="calc-card-header">
+        <span class="calc-card-title">SVI — Indeks objętościowy osadu</span>
+        <span class="calc-card-tag">SEDYM</span>
+      </div>
+      <div class="calc-body">
+        <div class="input-row">
+          <div class="input-label">
+            <div class="input-label-main"><span class="input-label-symbol">V₃₀</span> Objętość osadu po 30 min</div>
+            <div class="input-label-desc">Z lejka Imhoffa lub cylindra 1L</div>
+          </div>
+          <div class="input-control">
+            <input type="number" data-in="V30" value="280" step="1">
+            <span class="input-unit">mL/L</span>
+          </div>
+        </div>
+        <div class="input-row">
+          <div class="input-label">
+            <div class="input-label-main"><span class="input-label-symbol">MLSS</span> Stężenie zawiesin</div>
+            <div class="input-label-desc">Mixed Liquor Suspended Solids</div>
+          </div>
+          <div class="input-control">
+            <input type="number" data-in="MLSS" value="3.5" step="0.1">
+            <span class="input-unit">g/L</span>
+          </div>
+        </div>
+        <div class="calc-result">
+          <div class="calc-result-label">SVI</div>
+          <div><span class="calc-result-value" data-out="result">—</span><span class="calc-result-unit">mL/g</span></div>
+          <div class="calc-result-extra" data-out="extra"></div>
+        </div>
+        <div class="interpretation" data-out="interp"></div>
+        <button class="kb-toggle">📖 Wzór i wyjaśnienie</button>
+        <div class="kb-content">
+          <div class="kb-section-title">Wzór</div>
+          <div class="kb-formula">$$ SVI = \frac{V_{30} \cdot 1000}{MLSS} $$</div>
+          <div class="kb-section-title">Symbole</div>
+          <div class="kb-symbols">
+            <span class="kb-sym">SVI</span><span>Sludge Volume Index — objętość zajmowana przez 1 g osadu po 30 min sedymentacji [mL/g]</span>
+            <span class="kb-sym">V₃₀</span><span>Objętość osadu po 30 min sedymentacji w cylindrze 1 L [mL/L]</span>
+            <span class="kb-sym">MLSS</span><span>Mixed Liquor Suspended Solids — stężenie zawiesin w komorze [g/L]</span>
+          </div>
+          <div class="kb-section-title">Zakresy referencyjne</div>
+          <div class="kb-ranges">
+            <div class="kb-range ok"><div class="kb-range-label">Dobry</div><div class="kb-range-value">80-120 mL/g</div></div>
+            <div class="kb-range warn"><div class="kb-range-label">Słaba sedym.</div><div class="kb-range-value">120-150</div></div>
+            <div class="kb-range err"><div class="kb-range-label">Bulking</div><div class="kb-range-value">&gt;150</div></div>
+            <div class="kb-range warn"><div class="kb-range-label">Defloc.</div><div class="kb-range-value">&lt;70</div></div>
+          </div>
+          <p>Przy MLSS &gt; 4-5 g/L SVI zaniża właściwą sedymentację (osad nie ma gdzie opaść). Wtedy wiarygodniejszy jest <strong>DSVI</strong> — pomiar z rozcieńczeniem do V₃₀ ≤ 250 mL/L.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- DSVI -->
+    <div class="calc-card" data-calc-id="dsvi" data-calc-name="DSVI">
+      <div class="calc-card-header">
+        <span class="calc-card-title">DSVI — Rozcieńczony indeks osadu</span>
+        <span class="calc-card-tag">SEDYM⁺</span>
+      </div>
+      <div class="calc-body">
+        <div class="input-row">
+          <div class="input-label">
+            <div class="input-label-main"><span class="input-label-symbol">V₃₀<sup>r</sup></span> V₃₀ próbki rozcieńczonej</div>
+            <div class="input-label-desc">Powinno wyjść ≤ 250 mL/L</div>
+          </div>
+          <div class="input-control">
+            <input type="number" data-in="V30r" value="220" step="5">
+            <span class="input-unit">mL/L</span>
+          </div>
+        </div>
+        <div class="input-row">
+          <div class="input-label">
+            <div class="input-label-main"><span class="input-label-symbol">n</span> Krotność rozcieńczenia</div>
+            <div class="input-label-desc">2× = 1:1; 4× = 1:3 z wodą odpływu</div>
+          </div>
+          <div class="input-control">
+            <input type="number" data-in="n" value="2" step="1" min="1">
+            <span class="input-unit">×</span>
+          </div>
+        </div>
+        <div class="input-row">
+          <div class="input-label">
+            <div class="input-label-main"><span class="input-label-symbol">MLSS</span> Stężenie pierwotne</div>
+            <div class="input-label-desc">Przed rozcieńczeniem</div>
+          </div>
+          <div class="input-control">
+            <input type="number" data-in="MLSS" value="4.0" step="0.1">
+            <span class="input-unit">g/L</span>
+          </div>
+        </div>
+        <div class="calc-result">
+          <div class="calc-result-label">DSVI</div>
+          <div><span class="calc-result-value" data-out="result">—</span><span class="calc-result-unit">mL/g</span></div>
+          <div class="calc-result-extra" data-out="extra"></div>
+        </div>
+        <div class="interpretation" data-out="interp"></div>
+        <button class="kb-toggle">📖 Metoda i wzór</button>
+        <div class="kb-content">
+          <div class="kb-section-title">Procedura pomiaru (Jenkins / Eikelboom)</div>
+          <ol style="margin-left:1.2rem; color:var(--text-dim); margin: 0.3rem 0">
+            <li>Pobierz próbkę osadu z reaktora (cylinder 1 L).</li>
+            <li>Wykonaj sedymentację 30 min. Odczytaj V₃₀.</li>
+            <li>Jeśli V₃₀ &gt; 250 mL/L → rozcieńcz świeżą próbkę osadu wodą z odpływu (klarowna ciecz nadosadowa) w stosunku 1:1 (n=2), 1:2 (n=3) lub 1:3 (n=4) — tak, aby uzyskać V₃₀ ≤ 250 mL/L.</li>
+            <li>Powtarzaj rozcieńczanie, aż wpadniesz w przedział 100-250 mL/L.</li>
+            <li>Wynik V₃₀ z rozcieńczonej próbki i krotność n wpisz do kalkulatora.</li>
+          </ol>
+          <div class="kb-section-title">Wzór</div>
+          <div class="kb-formula">$$ DSVI = \frac{V_{30}^{r} \cdot n}{MLSS} $$</div>
+          <p>Lub równoważnie:</p>
+          <div class="kb-formula">$$ DSVI = \frac{V_{30}^{r}}{MLSS / n} = \frac{V_{30}^{r}}{MLSS_{rozc.}} $$</div>
+          <div class="kb-section-title">Symbole</div>
+          <div class="kb-symbols">
+            <span class="kb-sym">DSVI</span><span>Diluted Sludge Volume Index — wartość niezależna od MLSS pierwotnego [mL/g]</span>
+            <span class="kb-sym">V₃₀<sup>r</sup></span><span>Objętość osadu po 30 min w cylindrze z próbką rozcieńczoną [mL/L]</span>
+            <span class="kb-sym">n</span><span>Krotność rozcieńczenia (n=2 → 1 część osadu + 1 część wody nadosadowej itd.)</span>
+            <span class="kb-sym">MLSS</span><span>Stężenie zawiesin w próbce pierwotnej, przed rozcieńczeniem [g/L]</span>
+            <span class="kb-sym">MLSS<sub>rozc.</sub></span><span>= MLSS/n — efektywne stężenie w cylindrze po rozcieńczeniu</span>
+          </div>
+          <div class="kb-section-title">Dlaczego DSVI a nie SVI?</div>
+          <p>Przy <strong>MLSS &gt; 3,5 g/L</strong> osad fizycznie nie ma gdzie opaść w cylindrze 1 L. Mimo realnie złej sedymentacji V₃₀ "wypełnia" cylinder do np. 900 mL/L, ale dalej już nie pójdzie — bo dno jest tylko jedno. SVI klasyczny daje wtedy fałszywie zaniżoną wartość.</p>
+          <p><strong>Klasyczna pułapka:</strong> SVI = 225 przy MLSS = 4 g/L i V₃₀ = 900 wygląda jak "umiarkowany bulking". DSVI po rozcieńczeniu 2× może pokazać 280-320, czyli <strong>ciężki bulking</strong>. Bez DSVI nie wiesz, jak daleko jesteś od katastrofy.</p>
+          <div class="kb-section-title">Zakresy referencyjne (Jenkins, Daigger, Wahlberg)</div>
+          <div class="kb-ranges">
+            <div class="kb-range ok"><div class="kb-range-label">Bardzo dobry</div><div class="kb-range-value">&lt;80</div></div>
+            <div class="kb-range ok"><div class="kb-range-label">Dobry</div><div class="kb-range-value">80-120</div></div>
+            <div class="kb-range warn"><div class="kb-range-label">Średni</div><div class="kb-range-value">120-160</div></div>
+            <div class="kb-range warn"><div class="kb-range-label">Bulking</div><div class="kb-range-value">160-220</div></div>
+            <div class="kb-range err"><div class="kb-range-label">Ciężki bulking</div><div class="kb-range-value">&gt;220</div></div>
+          </div>
+          <p><strong>Reguła kciuka:</strong> jeśli DSVI &gt; 150, włącz tryb diagnostyczny — mikroskop, identyfikacja filamentów, audyt warunków operacyjnych (O₂ w DN, F/M, SRT, C:N:P).</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- F/M -->
+    <div class="calc-card" data-calc-id="fm" data-calc-name="F/M">
+      <div class="calc-card-header">
+        <span class="calc-card-title">F/M — Obciążenie osadu ładunkiem</span>
+        <span class="calc-card-tag">OBC</span>
+      </div>
+      <div class="calc-body">
+        <div class="input-row">
+          <div class="input-label">
+            <div class="input-label-main"><span class="input-label-symbol">Q</span> Przepływ ścieków</div>
+            <div class="input-label-desc">Średni dobowy do reaktora</div>
+          </div>
+          <div class="input-control">
+            <input type="number" data-in="Q" value="5000" step="100">
+            <span class="input-unit">m³/d</span>
+          </div>
+        </div>
+        <div class="input-row">
+          <div class="input-label">
+            <div class="input-label-main"><span class="input-label-symbol">S₀</span> Stężenie BZT₅ (lub ChZT)</div>
+            <div class="input-label-desc">W ściekach surowych / dopływie</div>
+          </div>
+          <div class="input-control">
+            <input type="number" data-in="S0" value="250" step="10">
+            <span class="input-unit">mg/L</span>
+          </div>
+        </div>
+        <div class="input-row">
+          <div class="input-label">
+            <div class="input-label-main"><span class="input-label-symbol">V</span> Objętość komory</div>
+            <div class="input-label-desc">Reaktor biologiczny</div>
+          </div>
+          <div class="input-control">
+            <input type="number" data-in="V" value="2000" step="50">
+            <span class="input-unit">m³</span>
+          </div>
+        </div>
+        <div class="input-row">
+          <div class="input-label">
+            <div class="input-label-main"><span class="input-label-symbol">X</span> MLVSS lub MLSS</div>
+            <div class="input-label-desc">Stężenie biomasy</div>
+          </div>
+          <div class="input-control">
+            <input type="number" data-in="X" value="3.0" step="0.1">
+            <span class="input-unit">g/L</span>
+          </div>
+        </div>
+        <div class="calc-result">
+          <div class="calc-result-label">F/M</div>
+          <div><span class="calc-result-value" data-out="result">—</span><span class="calc-result-unit">kg/(kg·d)</span></div>
+        </div>
+        <div class="interpretation" data-out="interp"></div>
+        <button class="kb-toggle">📖 Wzór i wyjaśnienie</button>
+        <div class="kb-content">
+          <div class="kb-section-title">Wzór</div>
+          <div class="kb-formula">$$ F/M = \frac{Q \cdot S_0}{V \cdot X} $$</div>
+          <div class="kb-section-title">Symbole</div>
+          <div class="kb-symbols">
+            <span class="kb-sym">F/M</span><span>Food to Microorganisms ratio — ładunek substratu na jednostkę biomasy [kg BZT/(kg X·d)]</span>
+            <span class="kb-sym">Q</span><span>Średni dobowy przepływ ścieków [m³/d]</span>
+            <span class="kb-sym">S₀</span><span>Stężenie substratu na dopływie (BZT₅ lub ChZT) [mg/L = g/m³]</span>
+            <span class="kb-sym">V</span><span>Objętość czynna reaktora biologicznego [m³]</span>
+            <span class="kb-sym">X</span><span>Stężenie biomasy — MLVSS (lepiej) lub MLSS [g/L = kg/m³]</span>
+          </div>
+          <div class="kb-section-title">Zakresy dla różnych systemów</div>
+          <div class="kb-ranges">
+            <div class="kb-range warn"><div class="kb-range-label">Wysokoobc.</div><div class="kb-range-value">0,5-1,5</div></div>
+            <div class="kb-range ok"><div class="kb-range-label">Konwencj.</div><div class="kb-range-value">0,2-0,5</div></div>
+            <div class="kb-range ok"><div class="kb-range-label">Niskoobc.</div><div class="kb-range-value">0,05-0,15</div></div>
+            <div class="kb-range"><div class="kb-range-label">Nitryfik.</div><div class="kb-range-value">&lt;0,15</div></div>
+          </div>
+          <p>Najczęściej oblicza się F/M względem <strong>BZT₅</strong>. Dla ChZT wartości są 2-2,5× wyższe. Zbyt wysokie F/M = ucieczka substratu, słaba flokulacja. Zbyt niskie = długi SRT, ryzyko filamentów typu 021N, M. parvicella.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- SRT -->
+    <div class="calc-card" data-calc-id="srt" data-calc-name="SRT">
+      <div class="calc-card-header">
+        <span class="calc-card-title">SRT — Wiek osadu</span>
+        <span class="calc-card-tag">KONTR</span>
+      </div>
+      <div class="calc-body">
+        <div class="input-row">
+          <div class="input-label">
+            <div class="input-label-main"><span class="input-label-symbol">V</span> Objętość komory</div>
+            <div class="input-label-desc">Reaktor + ewentualnie osadnik</div>
+          </div>
+          <div class="input-control">
+            <input type="number" data-in="V" value="2000" step="50">
+            <span class="input-unit">m³</span>
+          </div>
+        </div>
+        <div class="input-row">
+          <div class="input-label">
+            <div class="input-label-main"><span class="input-label-symbol">X</span> MLSS w komorze</div>
+            <div class="input-label-desc">Stężenie zawiesin</div>
+          </div>
+          <div class="input-control">
+            <input type="number" data-in="X" value="3.5" step="0.1">
+            <span class="input-unit">g/L</span>
+          </div>
+        </div>
+        <div class="input-row">
+          <div class="input-label">
+            <div class="input-label-main"><span class="input-label-symbol">Q<sub>w</sub></span> Przepływ osadu nadm.</div>
+            <div class="input-label-desc">Z recyrkulacji lub z komory</div>
+          </div>
+          <div class="input-control">
+            <input type="number" data-in="Qw" value="80" step="5">
+            <span class="input-unit">m³/d</span>
+          </div>
+        </div>
+        <div class="input-row">
+          <div class="input-label">
+            <div class="input-label-main"><span class="input-label-symbol">X<sub>w</sub></span> Stężenie w osadzie nadm.</div>
+            <div class="input-label-desc">Po zagęszczeniu lub w RAS</div>
+          </div>
+          <div class="input-control">
+            <input type="number" data-in="Xw" value="8.0" step="0.5">
+            <span class="input-unit">g/L</span>
+          </div>
+        </div>
+        <div class="input-row">
+          <div class="input-label">
+            <div class="input-label-main"><span class="input-label-symbol">Q<sub>e</sub>·X<sub>e</sub></span> Strata na odpływie</div>
+            <div class="input-label-desc">Pomiń jeśli &lt;5 mg/L</div>
+          </div>
+          <div class="input-control">
+            <input type="number" data-in="QeXe" value="0" step="1">
+            <span class="input-unit">kg/d</span>
+          </div>
+        </div>
+        <div class="calc-result">
+          <div class="calc-result-label">SRT</div>
+          <div><span class="calc-result-value" data-out="result">—</span><span class="calc-result-unit">dni</span></div>
+        </div>
+        <div class="interpretation" data-out="interp"></div>
+        <button class="kb-toggle">📖 Wzór i wyjaśnienie</button>
+        <div class="kb-content">
+          <div class="kb-section-title">Wzór</div>
+          <div class="kb-formula">$$ SRT = \frac{V \cdot X}{Q_w \cdot X_w + Q_e \cdot X_e} $$</div>
+          <div class="kb-section-title">Symbole</div>
+          <div class="kb-symbols">
+            <span class="kb-sym">SRT</span><span>Solids Retention Time (wiek osadu, MCRT) — średni czas przebywania komórek w systemie [d]</span>
+            <span class="kb-sym">V·X</span><span>Masa biomasy w reaktorze [kg]</span>
+            <span class="kb-sym">Q<sub>w</sub>·X<sub>w</sub></span><span>Dobowa masa osadu nadmiernego usuwana z układu [kg/d]</span>
+            <span class="kb-sym">Q<sub>e</sub>·X<sub>e</sub></span><span>Masa zawiesin tracona z odpływem [kg/d]</span>
+          </div>
+          <div class="kb-section-title">Zakresy referencyjne</div>
+          <div class="kb-ranges">
+            <div class="kb-range"><div class="kb-range-label">Tylko C</div><div class="kb-range-value">3-5 d</div></div>
+            <div class="kb-range ok"><div class="kb-range-label">Nitryfik.</div><div class="kb-range-value">8-15 d</div></div>
+            <div class="kb-range ok"><div class="kb-range-label">Denitr.+EBPR</div><div class="kb-range-value">10-25 d</div></div>
+            <div class="kb-range warn"><div class="kb-range-label">Stary osad</div><div class="kb-range-value">&gt;25 d</div></div>
+          </div>
+          <p>SRT to <strong>najważniejszy parametr kontrolny</strong> osadu czynnego. Dla nitryfikacji minimum 8 d w 10°C, w niższych temperaturach &gt;15 d. Zbyt długi SRT to często bilet do <em>M. parvicella</em> i pian.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- HRT -->
+    <div class="calc-card" data-calc-id="hrt" data-calc-name="HRT">
+      <div class="calc-card-header">
+        <span class="calc-card-title">HRT — Czas zatrzymania hydraulicznego</span>
+        <span class="calc-card-tag">HYDR</span>
+      </div>
+      <div class="calc-body">
+        <div class="input-row">
+          <div class="input-label">
+            <div class="input-label-main"><span class="input-label-symbol">V</span> Objętość reaktora</div>
+            <div class="input-label-desc">Czynna pojemność komory</div>
+          </div>
+          <div class="input-control">
+            <input type="number" data-in="V" value="2000" step="50">
+            <span class="input-unit">m³</span>
+          </div>
+        </div>
+        <div class="input-row">
+          <div class="input-label">
+            <div class="input-label-main"><span class="input-label-symbol">Q</span> Przepływ ścieków</div>
+            <div class="input-label-desc">Średni dobowy</div>
+          </div>
+          <div class="input-control">
+            <input type="number" data-in="Q" value="5000" step="100">
+            <span class="input-unit">m³/d</span>
+          </div>
+        </div>
+        <div class="calc-result">
+          <div class="calc-result-label">HRT</div>
+          <div><span class="calc-result-value" data-out="result">—</span><span class="calc-result-unit">h</span></div>
+          <div class="calc-result-extra" data-out="extra"></div>
+        </div>
+        <div class="interpretation" data-out="interp"></div>
+        <button class="kb-toggle">📖 Wzór i wyjaśnienie</button>
+        <div class="kb-content">
+          <div class="kb-section-title">Wzór</div>
+          <div class="kb-formula">$$ HRT = \frac{V}{Q} $$</div>
+          <div class="kb-section-title">Symbole</div>
+          <div class="kb-symbols">
+            <span class="kb-sym">HRT</span><span>Hydraulic Retention Time — średni czas przebywania ścieku w reaktorze [h lub d]</span>
+            <span class="kb-sym">V</span><span>Objętość czynna reaktora [m³]</span>
+            <span class="kb-sym">Q</span><span>Przepływ ścieków [m³/d lub m³/h]</span>
+          </div>
+          <p>HRT ≠ SRT. W systemach z recyrkulacją osadu SRT jest wielokrotnie dłuższy niż HRT — to jeden z fundamentów osadu czynnego. W złożach biologicznych i SBR rozróżnienie jest jeszcze ważniejsze.</p>
+          <div class="kb-section-title">Typowe wartości</div>
+          <div class="kb-ranges">
+            <div class="kb-range"><div class="kb-range-label">Wysokoobc.</div><div class="kb-range-value">2-4 h</div></div>
+            <div class="kb-range ok"><div class="kb-range-label">Konwencj.</div><div class="kb-range-value">4-8 h</div></div>
+            <div class="kb-range ok"><div class="kb-range-label">Niskoobc.</div><div class="kb-range-value">18-36 h</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Obciążenie objętościowe Bv -->
+    <div class="calc-card" data-calc-id="bv" data-calc-name="Bv">
+      <div class="calc-card-header">
+        <span class="calc-card-title">B<sub>v</sub> — Obciążenie objętościowe komory</span>
+        <span class="calc-card-tag">OBC</span>
+      </div>
+      <div class="calc-body">
+        <div class="input-row">
+          <div class="input-label">
+            <div class="input-label-main"><span class="input-label-symbol">Q</span> Przepływ ścieków</div>
+            <div class="input-label-desc">Średni dobowy</div>
+          </div>
+          <div class="input-control">
+            <input type="number" data-in="Q" value="5000" step="100">
+            <span class="input-unit">m³/d</span>
+          </div>
+        </div>
+        <div class="input-row">
+          <div class="input-label">
+            <div class="input-label-main"><span class="input-label-symbol">S₀</span> BZT₅ ścieków surowych</div>
+            <div class="input-label-desc">Stężenie na dopływie</div>
+          </div>
+          <div class="input-control">
+            <input type="number" data-in="S0" value="250" step="10">
+            <span class="input-unit">mg/L</span>
+          </div>
+        </div>
+        <div class="input-row">
+          <div class="input-label">
+            <div class="input-label-main"><span class="input-label-symbol">V</span> Objętość komory</div>
+            <div class="input-label-desc">Reaktor biologiczny</div>
+          </div>
+          <div class="input-control">
+            <input type="number" data-in="V" value="2000" step="50">
+            <span class="input-unit">m³</span>
+          </div>
+        </div>
+        <div class="calc-result">
+          <div class="calc-result-label">B<sub>v</sub></div>
+          <div><span class="calc-result-value" data-out="result">—</span><span class="calc-result-unit">kg BZT/(m³·d)</span></div>
+        </div>
+        <div class="interpretation" data-out="interp"></div>
+        <button class="kb-toggle">📖 Wzór i wyjaśnienie</button>
+        <div class="kb-content">
+          <div class="kb-section-title">Wzór</div>
+          <div class="kb-formula">$$ B_v = \frac{Q \cdot S_0}{V} $$</div>
+          <div class="kb-section-title">Symbole</div>
+          <div class="kb-symbols">
+            <span class="kb-sym">B<sub>v</sub></span><span>Obciążenie objętościowe — masa BZT na m³ reaktora na dobę [kg/(m³·d)]</span>
+            <span class="kb-sym">Q</span><span>Przepływ [m³/d]</span>
+            <span class="kb-sym">S₀</span><span>Stężenie BZT₅ na dopływie [g/m³]</span>
+            <span class="kb-sym">V</span><span>Objętość czynna [m³]</span>
+          </div>
+          <div class="kb-section-title">Zakresy typowe</div>
+          <div class="kb-ranges">
+            <div class="kb-range ok"><div class="kb-range-label">Niskoobc.</div><div class="kb-range-value">0,1-0,4</div></div>
+            <div class="kb-range ok"><div class="kb-range-label">Konwencj.</div><div class="kb-range-value">0,4-1,2</div></div>
+            <div class="kb-range warn"><div class="kb-range-label">Wysokoobc.</div><div class="kb-range-value">1,5-4,0</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Aktualny R (z pomiarów) -->
+    <div class="calc-card" data-calc-id="ras_actual" data-calc-name="R aktualne">
+      <div class="calc-card-header">
+        <span class="calc-card-title">R<sub>akt</sub> — Aktualny stopień recyrkulacji</span>
+        <span class="calc-card-tag">POMIAR</span>
+      </div>
+      <div class="calc-body">
+        <div class="input-row">
+          <div class="input-label">
+            <div class="input-label-main"><span class="input-label-symbol">Q<sub>RAS</sub></span> Przepływ recyrkulacji</div>
+            <div class="input-label-desc">Z pompy RAS (odczyt aktualny)</div>
+          </div>
+          <div class="input-control">
+            <input type="number" data-in="QRAS" value="3000" step="100">
+            <span class="input-unit">m³/d</span>
+          </div>
+        </div>
+        <div class="input-row">
+          <div class="input-label">
+            <div class="input-label-main"><span class="input-label-symbol">Q</span> Przepływ ścieków</div>
+            <div class="input-label-desc">Średni dobowy z dopływu</div>
+          </div>
+          <div class="input-control">
+            <input type="number" data-in="Q" value="5000" step="100">
+            <span class="input-unit">m³/d</span>
+          </div>
+        </div>
+        <hr class="calc-divider">
+        <div class="input-row">
+          <div class="input-label">
+            <div class="input-label-main"><span class="input-label-symbol">X</span> MLSS w komorze</div>
+            <div class="input-label-desc">Pomiar aktualny (opcjonalnie)</div>
+          </div>
+          <div class="input-control">
+            <input type="number" data-in="X" value="3.5" step="0.1">
+            <span class="input-unit">g/L</span>
+          </div>
+        </div>
+        <div class="input-row">
+          <div class="input-label">
+            <div class="input-label-main"><span class="input-label-symbol">X<sub>R</sub></span> Stężenie w RAS</div>
+            <div class="input-label-desc">Z dna osadnika wtórnego</div>
+          </div>
+          <div class="input-control">
+            <input type="number" data-in="XR" value="8.0" step="0.5">
+            <span class="input-unit">g/L</span>
+          </div>
+        </div>
+        <div class="calc-result">
+          <div class="calc-result-label">R<sub>akt</sub> = Q<sub>RAS</sub>/Q</div>
+          <div><span class="calc-result-value" data-out="result">—</span><span class="calc-result-unit">%</span></div>
+          <div class="calc-result-extra" data-out="extra"></div>
+        </div>
+        <div class="interpretation" data-out="interp"></div>
+        <button class="kb-toggle">📖 Wzór i wyjaśnienie</button>
+        <div class="kb-content">
+          <div class="kb-section-title">Wzór podstawowy</div>
+          <div class="kb-formula">$$ R_{akt} = \frac{Q_{RAS}}{Q} \cdot 100\% $$</div>
+          <div class="kb-section-title">Porównanie z wymaganym (z bilansu mas)</div>
+          <div class="kb-formula">$$ R_{wym} = \frac{X}{X_R - X} \cdot 100\% $$</div>
+          <div class="kb-section-title">Symbole</div>
+          <div class="kb-symbols">
+            <span class="kb-sym">R<sub>akt</sub></span><span>Aktualny stopień recyrkulacji — stosunek faktycznego przepływu RAS do dopływu [%]</span>
+            <span class="kb-sym">Q<sub>RAS</sub></span><span>Aktualny przepływ pompy/pomp recyrkulacji osadu [m³/d]</span>
+            <span class="kb-sym">Q</span><span>Średni dobowy przepływ ścieków surowych [m³/d]</span>
+            <span class="kb-sym">X</span><span>Aktualne MLSS w komorze biologicznej [g/L]</span>
+            <span class="kb-sym">X<sub>R</sub></span><span>Aktualne stężenie osadu w RAS [g/L]</span>
+            <span class="kb-sym">R<sub>wym</sub></span><span>Wymagany R z bilansu mas — utrzymanie zadanego MLSS przy aktualnym X<sub>R</sub></span>
+          </div>
+          <div class="kb-section-title">Zakresy typowe</div>
+          <div class="kb-ranges">
+            <div class="kb-range warn"><div class="kb-range-label">Za niska</div><div class="kb-range-value">&lt;30%</div></div>
+            <div class="kb-range ok"><div class="kb-range-label">Standard</div><div class="kb-range-value">50-100%</div></div>
+            <div class="kb-range warn"><div class="kb-range-label">Wysoka</div><div class="kb-range-value">100-150%</div></div>
+            <div class="kb-range err"><div class="kb-range-label">Za wysoka</div><div class="kb-range-value">&gt;150%</div></div>
+          </div>
+          <p><strong>Diagnostyka odchyleń:</strong></p>
+          <ul>
+            <li><strong>R<sub>akt</sub> &gt; R<sub>wym</sub></strong> → recyrkulujesz więcej niż potrzeba. MLSS może rosnąć ponad cel, X<sub>R</sub> spada (osad rozcieńczony), efektywny HRT skraca się. Sprawdź czy nie zmniejszyć obrotów pompy.</li>
+            <li><strong>R<sub>akt</sub> &lt; R<sub>wym</sub></strong> → koc osadu w osadniku rośnie, MLSS może spadać, w skrajnym przypadku ucieczka zawiesin z odpływem. Zwiększ Q<sub>RAS</sub>.</li>
+            <li><strong>R<sub>akt</sub> ≈ R<sub>wym</sub></strong> → system w bilansie, ale i tak warto sprawdzić wysokość zwierciadła osadu w osadniku.</li>
+          </ul>
+          <p><strong>Praktyka:</strong> przy zmiennym Q dobowym (godziny szczytu) sztywno ustawiona pompa RAS daje zmienne R<sub>akt</sub> w ciągu doby. W godzinach szczytu R efektywnie spada — to wtedy najczęściej zdarzają się ucieczki osadu.</p>
+          <p><strong>Powiązanie z SVI:</strong> maksymalne osiągalne X<sub>R</sub> ≈ 10⁶/SVI [mg/L]. Przy pogarszającej się sedymentacji X<sub>R</sub> spada → R<sub>wym</sub> rośnie. Jeśli pompa nie da rady, system idzie w spiralę.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Recyrkulacja R -->
+    <div class="calc-card" data-calc-id="ras" data-calc-name="R recyrkulacja">
+      <div class="calc-card-header">
+        <span class="calc-card-title">R — Wymagana recyrkulacja osadu (RAS)</span>
+        <span class="calc-card-tag">RAS</span>
+      </div>
+      <div class="calc-body">
+        <div class="input-row">
+          <div class="input-label">
+            <div class="input-label-main"><span class="input-label-symbol">X</span> MLSS w komorze</div>
+            <div class="input-label-desc">Wartość docelowa</div>
+          </div>
+          <div class="input-control">
+            <input type="number" data-in="X" value="3.5" step="0.1">
+            <span class="input-unit">g/L</span>
+          </div>
+        </div>
+        <div class="input-row">
+          <div class="input-label">
+            <div class="input-label-main"><span class="input-label-symbol">X<sub>R</sub></span> Stężenie w RAS</div>
+            <div class="input-label-desc">Z dna osadnika wtórnego</div>
+          </div>
+          <div class="input-control">
+            <input type="number" data-in="XR" value="8.0" step="0.5">
+            <span class="input-unit">g/L</span>
+          </div>
+        </div>
+        <div class="calc-result">
+          <div class="calc-result-label">R = Q<sub>RAS</sub>/Q</div>
+          <div><span class="calc-result-value" data-out="result">—</span><span class="calc-result-unit">%</span></div>
+        </div>
+        <div class="interpretation" data-out="interp"></div>
+        <button class="kb-toggle">📖 Wzór i wyjaśnienie</button>
+        <div class="kb-content">
+          <div class="kb-section-title">Wzór (z bilansu mas, przy X<sub>e</sub>≈0)</div>
+          <div class="kb-formula">$$ R = \frac{X}{X_R - X} $$</div>
+          <div class="kb-section-title">Symbole</div>
+          <div class="kb-symbols">
+            <span class="kb-sym">R</span><span>Stopień recyrkulacji = Q<sub>RAS</sub>/Q [-] lub [%]</span>
+            <span class="kb-sym">X</span><span>Docelowe MLSS w reaktorze [g/L]</span>
+            <span class="kb-sym">X<sub>R</sub></span><span>Stężenie zawiesin w osadzie z dna osadnika wtórnego (RAS) [g/L]</span>
+          </div>
+          <p>Typowe wartości R = 50-100%. Zbyt wysoka recyrkulacja → skrócenie efektywnego HRT, wymywanie osadu. Zbyt niska → grube koce osadu w osadniku, ryzyko ucieczki przez przelew.</p>
+          <p><strong>Powiązanie z SVI:</strong> maksymalne X<sub>R</sub> ≈ 10⁶/SVI [mg/L]. Przy SVI = 100 mL/g → X<sub>R</sub> max ≈ 10 g/L. Przy SVI = 200 → tylko 5 g/L.</p>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- =================== MODUŁ 02: BILANS TLENU =================== -->
+<section class="module" id="module-tlen">
+  <div class="module-header">
+    <div>
+      <div class="module-code">// MODULE 02</div>
+      <h2 class="module-title">Bilans tlenu i napowietrzanie</h2>
+    </div>
+  </div>
+  <p class="module-intro">Zapotrzebowanie biologiczne na tlen (OUR), wymagana zdolność dostarczania tlenu w warunkach rzeczywistych (AOR) i standardowych (SOR). Większość energii oczyszczalni idzie tutaj — warto wiedzieć, ile naprawdę potrzeba.</p>
+
+  <div class="calc-grid">
+
+    <!-- AOR (zapotrzebowanie procesowe) -->
+    <div class="calc-card" data-calc-id="aor" data-calc-name="AOR">
+      <div class="calc-card-header">
+        <span class="calc-card-title">AOR — Zapotrzebowanie tlenu procesu</span>
+        <span class="calc-card-tag">O₂</span>
+      </div>
+      <div class="calc-body">
+        <div class="input-row">
+          <div class="input-label">
+            <div class="input-label-main"><span class="input-label-symbol">Q</span> Przepływ</div>
+            <div class="input-label-desc">Średni dobowy</div>
+          </div>
+          <div class="input-control">
+            <input type="number" data-in="Q" value="5000" step="100">
+            <span class="input-unit">m³/d</span>
+          </div>
+        </div>
+        <div class="input-row">
+          <div class="input-label">
+            <div class="input-label-main"><span class="input-label-symbol">ΔS</span> Usunięte BZT₅</div>
+            <div class="input-label-desc">S₀ − S<sub>e</sub></div>
+          </div>
+          <div class="input-control">
+            <input type="number" data-in="dS" value="240" step="5">
+            <span class="input-unit">mg/L</span>
+          </div>
+        </div>
+        <div class="input-row">
+          <div class="input-label">
+            <div class="input-label-main"><span class="input-label-symbol">ΔN</span> Utleniony N-NH₄</div>
+            <div class="input-label-desc">Tylko jeśli nitryfikujesz</div>
+          </div>
+          <div class="input-control">
+            <input type="number" data-in="dN" value="35" step="1">
+            <span class="input-unit">mg/L</span>
+          </div>
+        </div>
+        <div class="input-row">
+          <div class="input-label">
+            <div class="input-label-main"><span class="input-label-symbol">a</span> Współcz. degradacji</div>
+            <div class="input-label-desc">Zwykle 0,5-0,6 kg O₂/kg BZT</div>
+          </div>
+          <div class="input-control">
+            <input type="number" data-in="a" value="0.55" step="0.05">
+            <span class="input-unit">-</span>
+          </div>
+        </div>
+        <div class="input-row">
+          <div class="input-label">
+            <div class="input-label-main"><span class="input-label-symbol">b·X·V</span> Oddychanie endog.</div>
+            <div class="input-label-desc">Opcjonalnie, jeśli liczysz osobno</div>
+          </div>
+          <div class="input-control">
+            <input type="number" data-in="endog" value="0" step="10">
+            <span class="input-unit">kg/d</span>
+          </div>
+        </div>
+        <div class="calc-result">
+          <div class="calc-result-label">AOR (zapotrzebowanie)</div>
+          <div><span class="calc-result-value" data-out="result">—</span><span class="calc-result-unit">kg O₂/d</span></div>
+          <div class="calc-result-extra" data-out="extra"></div>
+        </div>
+        <div class="interpretation" data-out="interp"></div>
+        <button class="kb-toggle">📖 Wzór i wyjaśnienie</button>
+        <div class="kb-content">
+          <div class="kb-section-title">Wzór uproszczony</div>
+          <div class="kb-formula">$$ AOR = a \cdot Q \cdot \Delta S + 4{,}57 \cdot Q \cdot \Delta N + b \cdot X \cdot V $$</div>
+          <div class="kb-section-title">Symbole</div>
+          <div class="kb-symbols">
+            <span class="kb-sym">AOR</span><span>Actual Oxygen Requirement — zapotrzebowanie tlenu w warunkach procesowych [kg O₂/d]</span>
+            <span class="kb-sym">a</span><span>Współczynnik zużycia O₂ na utlenianie substratu (0,4-0,7 kg O₂/kg BZT₅ usuniętego)</span>
+            <span class="kb-sym">4,57</span><span>Stechiometria nitryfikacji: 4,57 g O₂ na 1 g N-NH₄ utlenionego do NO₃⁻</span>
+            <span class="kb-sym">b</span><span>Współczynnik oddychania endogennego (0,05-0,12 d⁻¹)</span>
+          </div>
+          <p><strong>Uwaga:</strong> wzór nie uwzględnia odzysku tlenu z denitryfikacji (każdy gram N-NO₃ zredukowany do N₂ "oddaje" ok. 2,86 g O₂). W systemach predenitryfikacji można odjąć ten zysk.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- SOR -->
+    <div class="calc-card" data-calc-id="sor" data-calc-name="SOR">
+      <div class="calc-card-header">
+        <span class="calc-card-title">SOR — Wymagana wydajność aeratora (warunki standard.)</span>
+        <span class="calc-card-tag">DOBÓR</span>
+      </div>
+      <div class="calc-body">
+        <div class="input-row">
+          <div class="input-label">
+            <div class="input-label-main"><span class="input-label-symbol">AOR</span> Zapotrzebowanie procesowe</div>
+            <div class="input-label-desc">Z poprzedniego kalkulatora</div>
+          </div>
+          <div class="input-control">
+            <input type="number" data-in="AOR" value="3000" step="50">
+            <span class="input-unit">kg O₂/d</span>
+          </div>
+        </div>
+        <div class="input-row">
+          <div class="input-label">
+            <div class="input-label-main"><span class="input-label-symbol">T</span> Temperatura procesu</div>
+            <div class="input-label-desc">Średnia w komorze</div>
+          </div>
+          <div class="input-control">
+            <input type="number" data-in="T" value="15" step="1">
+            <span class="input-unit">°C</span>
+          </div>
+        </div>
+        <div class="input-row">
+          <div class="input-label">
+            <div class="input-label-main"><span class="input-label-symbol">C<sub>L</sub></span> Stężenie O₂ utrzym.</div>
+            <div class="input-label-desc">Operacyjne w komorze</div>
+          </div>
+          <div class="input-control">
+            <input type="number" data-in="CL" value="2.0" step="0.1">
+            <span class="input-unit">mg/L</span>
+          </div>
+        </div>
+        <div class="input-row">
+          <div class="input-label">
+            <div class="input-label-main"><span class="input-label-symbol">α</span> Wsp. transferu (ściek/woda)</div>
+            <div class="input-label-desc">Zwykle 0,5-0,9</div>
+          </div>
+          <div class="input-control">
+            <input type="number" data-in="alpha" value="0.7" step="0.05">
+            <span class="input-unit">-</span>
+          </div>
+        </div>
+        <div class="input-row">
+          <div class="input-label">
+            <div class="input-label-main"><span class="input-label-symbol">β</span> Wsp. salinity</div>
+            <div class="input-label-desc">Dla ścieków komunalnych ≈0,95</div>
+          </div>
+          <div class="input-control">
+            <input type="number" data-in="beta" value="0.95" step="0.05">
+            <span class="input-unit">-</span>
+          </div>
+        </div>
+        <div class="calc-result">
+          <div class="calc-result-label">SOR</div>
+          <div><span class="calc-result-value" data-out="result">—</span><span class="calc-result-unit">kg O₂/d</span></div>
+          <div class="calc-result-extra" data-out="extra"></div>
+        </div>
+        <div class="interpretation" data-out="interp"></div>
+        <button class="kb-toggle">📖 Wzór i wyjaśnienie</button>
+        <div class="kb-content">
+          <div class="kb-section-title">Wzór (przeliczenie do warunków standardowych)</div>
+          <div class="kb-formula">$$ SOR = AOR \cdot \frac{C_{S,20}}{\alpha \cdot (\beta \cdot C_{S,T} - C_L) \cdot 1{,}024^{T-20}} $$</div>
+          <div class="kb-section-title">Symbole</div>
+          <div class="kb-symbols">
+            <span class="kb-sym">SOR</span><span>Standard Oxygen Requirement — w warunkach normowych (czysta woda, 20°C, C<sub>L</sub>=0) [kg O₂/d]</span>
+            <span class="kb-sym">C<sub>S,20</sub></span><span>Rozpuszczalność O₂ w 20°C ≈ 9,08 mg/L</span>
+            <span class="kb-sym">C<sub>S,T</sub></span><span>Rozpuszczalność O₂ w temperaturze procesu (wg tabel)</span>
+            <span class="kb-sym">α</span><span>Stosunek k<sub>L</sub>a w ścieku/wodzie czystej (0,4-0,9)</span>
+            <span class="kb-sym">β</span><span>Stosunek rozpuszczalności O₂ ściek/woda czysta</span>
+            <span class="kb-sym">1,024</span><span>Współczynnik temperaturowy transferu O₂</span>
+          </div>
+          <p>Producenci dyfuzorów podają wydajność jako <strong>SOTR/SOR</strong> w warunkach standardowych. Twoja AOR &lt; SOR, bo realny transfer jest gorszy niż laboratoryjny. Stosunek SOR/AOR to ok. 1,5-2,5.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- α-OTE / energia -->
+    <div class="calc-card" data-calc-id="energy" data-calc-name="Energia napowietrzania">
+      <div class="calc-card-header">
+        <span class="calc-card-title">Szacowane zużycie energii (dyfuzory)</span>
+        <span class="calc-card-tag">kWh</span>
+      </div>
+      <div class="calc-body">
+        <div class="input-row">
+          <div class="input-label">
+            <div class="input-label-main"><span class="input-label-symbol">SOR</span> Wymagany transfer O₂</div>
+            <div class="input-label-desc">Standardowy</div>
+          </div>
+          <div class="input-control">
+            <input type="number" data-in="SOR" value="5000" step="50">
+            <span class="input-unit">kg O₂/d</span>
+          </div>
+        </div>
+        <div class="input-row">
+          <div class="input-label">
+            <div class="input-label-main"><span class="input-label-symbol">SAE</span> Sprawność dmuchawa+dyfuzor</div>
+            <div class="input-label-desc">Specific Aeration Efficiency</div>
+          </div>
+          <div class="input-control">
+            <input type="number" data-in="SAE" value="3.5" step="0.1">
+            <span class="input-unit">kg/kWh</span>
+          </div>
+        </div>
+        <div class="input-row">
+          <div class="input-label">
+            <div class="input-label-main"><span class="input-label-symbol">€/kWh</span> Cena energii</div>
+            <div class="input-label-desc">Średnia</div>
+          </div>
+          <div class="input-control">
+            <input type="number" data-in="price" value="0.85" step="0.05">
+            <span class="input-unit">zł/kWh</span>
+          </div>
+        </div>
+        <div class="calc-result">
+          <div class="calc-result-label">Zużycie / koszt</div>
+          <div><span class="calc-result-value" data-out="result">—</span><span class="calc-result-unit">kWh/d</span></div>
+          <div class="calc-result-extra" data-out="extra"></div>
+        </div>
+        <div class="interpretation" data-out="interp"></div>
+        <button class="kb-toggle">📖 Wzór i wyjaśnienie</button>
+        <div class="kb-content">
+          <div class="kb-formula">$$ E = \frac{SOR}{SAE}, \quad K = E \cdot c $$</div>
+          <div class="kb-symbols">
+            <span class="kb-sym">E</span><span>Dobowe zużycie energii na napowietrzanie [kWh/d]</span>
+            <span class="kb-sym">SAE</span><span>Specific Aeration Efficiency — kg O₂ dostarczonego na kWh energii dmuchaw (typowe 2-5)</span>
+            <span class="kb-sym">c</span><span>Jednostkowa cena energii [zł/kWh]</span>
+          </div>
+          <p>Napowietrzanie to zwykle <strong>50-70% poboru energii</strong> w oczyszczalni komunalnej. Dyfuzory drobnopęcherzykowe + dmuchawa turbo: SAE 3,5-5. Stara turbina powierzchniowa: 1,5-2,5. Różnica = realne pieniądze.</p>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- =================== MODUŁ 03: STRĄCANIE P =================== -->
+<section class="module" id="module-fosfor">
+  <div class="module-header">
+    <div>
+      <div class="module-code">// MODULE 03</div>
+      <h2 class="module-title">Strącanie chemiczne fosforu</h2>
+    </div>
+  </div>
+  <p class="module-intro">Dawka koagulantu na podstawie stechiometrii i nadmiaru molowego. Domyślnie PIX-113 (FeCl₃ ok. 41%) i PAX-18 (Al ≈ 9%). Wzory zakładają osiągnięcie P końcowego ≤ 1 mg/L; dla &lt;0,5 mg/L nadmiar molowy musi rosnąć.</p>
+
+  <div class="calc-grid">
+
+    <!-- Dawka koagulantu -->
+    <div class="calc-card" data-calc-id="pix" data-calc-name="Dawka PIX/PAX">
+      <div class="calc-card-header">
+        <span class="calc-card-title">Dawka koagulantu</span>
+        <span class="calc-card-tag">DOZOW</span>
+      </div>
+      <div class="calc-body">
+        <div class="input-row">
+          <div class="input-label">
+            <div class="input-label-main"><span class="input-label-symbol">Q</span> Przepływ ścieków</div>
+            <div class="input-label-desc">Średni dobowy</div>
+          </div>
+          <div class="input-control">
+            <input type="number" data-in="Q" value="5000" step="100">
+            <span class="input-unit">m³/d</span>
+          </div>
+        </div>
+        <div class="input-row">
+          <div class="input-label">
+            <div class="input-label-main"><span class="input-label-symbol">P<sub>do strąc.</sub></span> P do strącenia</div>
+            <div class="input-label-desc">P na dopływie − P docelowy</div>
+          </div>
+          <div class="input-control">
+            <input type="number" data-in="P" value="4.0" step="0.1">
+            <span class="input-unit">mg/L</span>
+          </div>
+        </div>
+        <div class="input-row">
+          <div class="input-label">
+            <div class="input-label-main">Typ koagulantu</div>
+            <div class="input-label-desc">Wybierz produkt</div>
+          </div>
+          <div class="input-control">
+            <select data-in="coag">
+              <option value="pix113" data-metal="Fe" data-mw="55.85" data-pct="0.118">PIX-113 (Fe ≈ 11,8%)</option>
+              <option value="pix111" data-metal="Fe" data-mw="55.85" data-pct="0.095">PIX-111 (Fe ≈ 9,5%)</option>
+              <option value="pax18" data-metal="Al" data-mw="26.98" data-pct="0.09">PAX-18 (Al ≈ 9%)</option>
+              <option value="pax16" data-metal="Al" data-mw="26.98" data-pct="0.08">PAX-16 (Al ≈ 8%)</option>
+              <option value="alum" data-metal="Al" data-mw="26.98" data-pct="0.045">Siarczan glinu Al₂(SO₄)₃ (≈4,5% Al)</option>
+            </select>
+          </div>
+        </div>
+        <div class="input-row">
+          <div class="input-label">
+            <div class="input-label-main"><span class="input-label-symbol">β</span> Nadmiar molowy Me/P</div>
+            <div class="input-label-desc">1,5-2,5 dla &lt;1 mg P/L</div>
+          </div>
+          <div class="input-control">
+            <input type="number" data-in="beta" value="1.8" step="0.1">
+            <span class="input-unit">mol/mol</span>
+          </div>
+        </div>
+        <div class="input-row">
+          <div class="input-label">
+            <div class="input-label-main"><span class="input-label-symbol">ρ</span> Gęstość roztworu</div>
+            <div class="input-label-desc">PIX-113 ≈ 1,42; PAX-18 ≈ 1,37</div>
+          </div>
+          <div class="input-control">
+            <input type="number" data-in="rho" value="1.42" step="0.01">
+            <span class="input-unit">kg/L</span>
+          </div>
+        </div>
+        <div class="calc-result">
+          <div class="calc-result-label">Dawka dobowa koagulantu</div>
+          <div><span class="calc-result-value" data-out="result">—</span><span class="calc-result-unit">L/d</span></div>
+          <div class="calc-result-extra" data-out="extra"></div>
+        </div>
+        <div class="interpretation" data-out="interp"></div>
+        <button class="kb-toggle">📖 Wzór i wyjaśnienie</button>
+        <div class="kb-content">
+          <div class="kb-section-title">Stechiometria</div>
+          <div class="kb-formula">$$ Me^{3+} + PO_4^{3-} \rightarrow MePO_4 \downarrow $$</div>
+          <div class="kb-formula">$$ m_{Me} = \beta \cdot \frac{M_{Me}}{31} \cdot Q \cdot P_{\text{strąc}} $$</div>
+          <div class="kb-formula">$$ V_{\text{koag}} = \frac{m_{Me}}{\rho \cdot c_{Me}} $$</div>
+          <div class="kb-section-title">Symbole</div>
+          <div class="kb-symbols">
+            <span class="kb-sym">m<sub>Me</sub></span><span>Dawka metalu (Fe lub Al) [kg/d]</span>
+            <span class="kb-sym">β</span><span>Nadmiar molowy względem stechiometrii (1:1 dla Me³⁺:P)</span>
+            <span class="kb-sym">M<sub>Me</sub></span><span>Masa molowa: Fe = 55,85; Al = 26,98 g/mol</span>
+            <span class="kb-sym">31</span><span>Masa atomowa fosforu [g/mol]</span>
+            <span class="kb-sym">c<sub>Me</sub></span><span>Udział masowy metalu w koagulancie</span>
+          </div>
+          <div class="kb-section-title">Praktyka</div>
+          <ul>
+            <li>Dla P<sub>e</sub> &lt; 1,0 mg/L: β = 1,5-2,0</li>
+            <li>Dla P<sub>e</sub> &lt; 0,5 mg/L: β = 2,0-3,0</li>
+            <li>Dla P<sub>e</sub> &lt; 0,3 mg/L: dodatkowo filtracja/strącanie wtórne</li>
+          </ul>
+          <p><strong>Koszt uboczny:</strong> każdy mol Me³⁺ to ok. 3 mole alkaliczności (Ca(HCO₃)₂) zużyte. Przy słabo zbuforowanym ścieku spadek pH może wybić nitryfikację.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Zwiększona produkcja osadu -->
+    <div class="calc-card" data-calc-id="osad_chem" data-calc-name="Osad chemiczny">
+      <div class="calc-card-header">
+        <span class="calc-card-title">Dodatkowy osad ze strącania</span>
+        <span class="calc-card-tag">OSAD</span>
+      </div>
+      <div class="calc-body">
+        <div class="input-row">
+          <div class="input-label">
+            <div class="input-label-main"><span class="input-label-symbol">m<sub>Me</sub></span> Dawka metalu</div>
+            <div class="input-label-desc">Fe lub Al</div>
+          </div>
+          <div class="input-control">
+            <input type="number" data-in="mMe" value="60" step="1">
+            <span class="input-unit">kg/d</span>
+          </div>
+        </div>
+        <div class="input-row">
+          <div class="input-label">
+            <div class="input-label-main">Metal</div>
+            <div class="input-label-desc">Wpływa na masę osadu</div>
+          </div>
+          <div class="input-control">
+            <select data-in="metal">
+              <option value="Fe" data-factor="2.7">Fe → FePO₄ + Fe(OH)₃</option>
+              <option value="Al" data-factor="5.4">Al → AlPO₄ + Al(OH)₃</option>
+            </select>
+          </div>
+        </div>
+        <div class="calc-result">
+          <div class="calc-result-label">Dodatkowy osad chemiczny</div>
+          <div><span class="calc-result-value" data-out="result">—</span><span class="calc-result-unit">kg s.m./d</span></div>
+          <div class="calc-result-extra" data-out="extra"></div>
+        </div>
+        <div class="interpretation" data-out="interp"></div>
+        <button class="kb-toggle">📖 Wzór i wyjaśnienie</button>
+        <div class="kb-content">
+          <p>Strącanie chemiczne <strong>zwiększa produkcję osadu</strong> o 15-30%. Powstaje fosforan metalu + nadmiar metalu jako wodorotlenek (jeśli β &gt; 1).</p>
+          <div class="kb-section-title">Współczynniki empiryczne</div>
+          <ul>
+            <li>Fe: ok. 2,5-2,7 kg s.m./kg Fe dawkowanego</li>
+            <li>Al: ok. 4,5-5,5 kg s.m./kg Al dawkowanego</li>
+          </ul>
+          <p>Al daje więcej osadu, bo masa molowa Al(OH)₃ relatywnie do Al jest duża. Fe jest "ekonomiczniejsze" objętościowo dla zagęszczania.</p>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- =================== MODUŁ 04: SBR =================== -->
+<section class="module" id="module-sbr">
+  <div class="module-header">
+    <div>
+      <div class="module-code">// MODULE 04</div>
+      <h2 class="module-title">SBR — Reaktor sekwencyjny</h2>
+    </div>
+  </div>
+  <p class="module-intro">SBR pracuje cyklicznie: napełnianie → reakcja → sedymentacja → dekantacja → faza idle. Obliczenia dla pojedynczego cyklu i bilansu dobowego.</p>
+
+  <div class="calc-grid">
+
+    <!-- Objętość wymiany / VER -->
+    <div class="calc-card" data-calc-id="ver" data-calc-name="VER SBR">
+      <div class="calc-card-header">
+        <span class="calc-card-title">VER — Współczynnik wymiany objętości</span>
+        <span class="calc-card-tag">SBR</span>
+      </div>
+      <div class="calc-body">
+        <div class="input-row">
+          <div class="input-label">
+            <div class="input-label-main"><span class="input-label-symbol">V<sub>F</sub></span> Objętość napełniania</div>
+            <div class="input-label-desc">Przyrost w fazie fill</div>
+          </div>
+          <div class="input-control">
+            <input type="number" data-in="VF" value="150" step="10">
+            <span class="input-unit">m³</span>
+          </div>
+        </div>
+        <div class="input-row">
+          <div class="input-label">
+            <div class="input-label-main"><span class="input-label-symbol">V<sub>T</sub></span> Objętość maks. reaktora</div>
+            <div class="input-label-desc">Pełne napełnienie</div>
+          </div>
+          <div class="input-control">
+            <input type="number" data-in="VT" value="500" step="10">
+            <span class="input-unit">m³</span>
+          </div>
+        </div>
+        <div class="calc-result">
+          <div class="calc-result-label">VER = V<sub>F</sub>/V<sub>T</sub></div>
+          <div><span class="calc-result-value" data-out="result">—</span><span class="calc-result-unit">-</span></div>
+          <div class="calc-result-extra" data-out="extra"></div>
+        </div>
+        <div class="interpretation" data-out="interp"></div>
+        <button class="kb-toggle">📖 Wzór i wyjaśnienie</button>
+        <div class="kb-content">
+          <div class="kb-formula">$$ VER = \frac{V_F}{V_T} $$</div>
+          <div class="kb-symbols">
+            <span class="kb-sym">VER</span><span>Volume Exchange Ratio — udział nowego ścieku w cyklu (zwykle 0,2-0,5)</span>
+            <span class="kb-sym">V<sub>F</sub></span><span>Objętość napełniana w jednym cyklu [m³]</span>
+            <span class="kb-sym">V<sub>T</sub></span><span>Całkowita objętość czynna reaktora [m³]</span>
+          </div>
+          <p>Im wyższe VER, tym większa wydajność hydrauliczna, ale mniejsze "rozcieńczenie" w reaktorze i większe szoki obciążeniowe.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Liczba cykli dobowo -->
+    <div class="calc-card" data-calc-id="cykle" data-calc-name="Cykle SBR">
+      <div class="calc-card-header">
+        <span class="calc-card-title">Liczba cykli na dobę / wydajność</span>
+        <span class="calc-card-tag">CYKL</span>
+      </div>
+      <div class="calc-body">
+        <div class="input-row">
+          <div class="input-label">
+            <div class="input-label-main"><span class="input-label-symbol">t<sub>c</sub></span> Czas cyklu</div>
+            <div class="input-label-desc">Fill+React+Sed+Dec+Idle</div>
+          </div>
+          <div class="input-control">
+            <input type="number" data-in="tc" value="6" step="0.5">
+            <span class="input-unit">h</span>
+          </div>
+        </div>
+        <div class="input-row">
+          <div class="input-label">
+            <div class="input-label-main"><span class="input-label-symbol">V<sub>F</sub></span> Objętość napełniania</div>
+            <div class="input-label-desc">Na cykl</div>
+          </div>
+          <div class="input-control">
+            <input type="number" data-in="VF" value="150" step="10">
+            <span class="input-unit">m³</span>
+          </div>
+        </div>
+        <div class="input-row">
+          <div class="input-label">
+            <div class="input-label-main"><span class="input-label-symbol">n<sub>R</sub></span> Liczba reaktorów</div>
+            <div class="input-label-desc">Pracujących równolegle</div>
+          </div>
+          <div class="input-control">
+            <input type="number" data-in="nR" value="2" step="1">
+            <span class="input-unit">szt</span>
+          </div>
+        </div>
+        <div class="calc-result">
+          <div class="calc-result-label">Wydajność dobowa</div>
+          <div><span class="calc-result-value" data-out="result">—</span><span class="calc-result-unit">m³/d</span></div>
+          <div class="calc-result-extra" data-out="extra"></div>
+        </div>
+        <div class="interpretation" data-out="interp"></div>
+        <button class="kb-toggle">📖 Wzór i wyjaśnienie</button>
+        <div class="kb-content">
+          <div class="kb-formula">$$ Q_{max} = n_R \cdot V_F \cdot \frac{24}{t_c} $$</div>
+          <div class="kb-symbols">
+            <span class="kb-sym">n<sub>R</sub></span><span>Liczba reaktorów SBR pracujących równolegle</span>
+            <span class="kb-sym">t<sub>c</sub></span><span>Czas jednego cyklu [h]</span>
+          </div>
+          <p>Typowy podział cyklu 6h: Fill 1h / React 3h / Settle 1h / Decant 0,5h / Idle 0,5h. W praktyce SBR-y prowadzi się z napowietrzaniem podczas napełniania (aerated fill) lub bez (denitryfikacja w fill).</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Obciążenie ładunkiem cyklu -->
+    <div class="calc-card" data-calc-id="bcykl" data-calc-name="Obc. cykli SBR">
+      <div class="calc-card-header">
+        <span class="calc-card-title">Obciążenie cykliczne ładunkiem</span>
+        <span class="calc-card-tag">OBC</span>
+      </div>
+      <div class="calc-body">
+        <div class="input-row">
+          <div class="input-label">
+            <div class="input-label-main"><span class="input-label-symbol">V<sub>F</sub></span> Napełnianie/cykl</div>
+            <div class="input-label-desc">Świeży ściek</div>
+          </div>
+          <div class="input-control">
+            <input type="number" data-in="VF" value="150" step="10">
+            <span class="input-unit">m³</span>
+          </div>
+        </div>
+        <div class="input-row">
+          <div class="input-label">
+            <div class="input-label-main"><span class="input-label-symbol">S₀</span> BZT₅ ścieków</div>
+            <div class="input-label-desc">Dopływ</div>
+          </div>
+          <div class="input-control">
+            <input type="number" data-in="S0" value="300" step="10">
+            <span class="input-unit">mg/L</span>
+          </div>
+        </div>
+        <div class="input-row">
+          <div class="input-label">
+            <div class="input-label-main"><span class="input-label-symbol">V<sub>T</sub></span> Pełna obj. reaktora</div>
+            <div class="input-label-desc">Po fill</div>
+          </div>
+          <div class="input-control">
+            <input type="number" data-in="VT" value="500" step="10">
+            <span class="input-unit">m³</span>
+          </div>
+        </div>
+        <div class="input-row">
+          <div class="input-label">
+            <div class="input-label-main"><span class="input-label-symbol">X</span> MLSS w reaktorze</div>
+            <div class="input-label-desc">Po napełnieniu</div>
+          </div>
+          <div class="input-control">
+            <input type="number" data-in="X" value="4.0" step="0.1">
+            <span class="input-unit">g/L</span>
+          </div>
+        </div>
+        <div class="input-row">
+          <div class="input-label">
+            <div class="input-label-main"><span class="input-label-symbol">n<sub>c</sub></span> Cykli/dobę</div>
+            <div class="input-label-desc">24/t<sub>c</sub></div>
+          </div>
+          <div class="input-control">
+            <input type="number" data-in="nc" value="4" step="1">
+            <span class="input-unit">-</span>
+          </div>
+        </div>
+        <div class="calc-result">
+          <div class="calc-result-label">F/M cykliczne</div>
+          <div><span class="calc-result-value" data-out="result">—</span><span class="calc-result-unit">kg/(kg·d)</span></div>
+          <div class="calc-result-extra" data-out="extra"></div>
+        </div>
+        <div class="interpretation" data-out="interp"></div>
+        <button class="kb-toggle">📖 Wzór i wyjaśnienie</button>
+        <div class="kb-content">
+          <div class="kb-formula">$$ F/M_{SBR} = \frac{n_c \cdot V_F \cdot S_0}{V_T \cdot X} $$</div>
+          <p>SBR ma <strong>zmienne stężenia w czasie</strong> — w momencie fill ładunek jest skoncentrowany, w fazie react już zmetabolizowany. Klasyczne F/M dobowe oddaje średnią, ale prawdziwy "stres" mikroorganizmów jest na początku cyklu.</p>
+          <div class="kb-section-title">Zakresy</div>
+          <div class="kb-ranges">
+            <div class="kb-range ok"><div class="kb-range-label">Niskoobc.</div><div class="kb-range-value">0,05-0,15</div></div>
+            <div class="kb-range ok"><div class="kb-range-label">Średnio</div><div class="kb-range-value">0,15-0,3</div></div>
+            <div class="kb-range warn"><div class="kb-range-label">Wysoko</div><div class="kb-range-value">&gt;0,3</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- =================== MODUŁ 05: TEMPERATURA, KINETYKA, C:N:P =================== -->
+<section class="module" id="module-kinetyka">
+  <div class="module-header">
+    <div>
+      <div class="module-code">// MODULE 05</div>
+      <h2 class="module-title">Temperatura, C:N:P, kinetyka</h2>
+    </div>
+  </div>
+  <p class="module-intro">Wpływ temperatury na kinetykę procesów (Arrhenius), bilans biogenny C:N:P, prosta ocena nitryfikacji.</p>
+
+  <div class="calc-grid">
+
+    <!-- Arrhenius -->
+    <div class="calc-card" data-calc-id="arr" data-calc-name="Korekcja temp.">
+      <div class="calc-card-header">
+        <span class="calc-card-title">Korekcja Arrheniusa</span>
+        <span class="calc-card-tag">TEMP</span>
+      </div>
+      <div class="calc-body">
+        <div class="input-row">
+          <div class="input-label">
+            <div class="input-label-main"><span class="input-label-symbol">k₂₀</span> Stała w 20°C</div>
+            <div class="input-label-desc">Wartość referencyjna</div>
+          </div>
+          <div class="input-control">
+            <input type="number" data-in="k20" value="1.0" step="0.05">
+            <span class="input-unit">d⁻¹</span>
+          </div>
+        </div>
+        <div class="input-row">
+          <div class="input-label">
+            <div class="input-label-main"><span class="input-label-symbol">T</span> Temperatura procesu</div>
+            <div class="input-label-desc">Aktualna w komorze</div>
+          </div>
+          <div class="input-control">
+            <input type="number" data-in="T" value="12" step="0.5">
+            <span class="input-unit">°C</span>
+          </div>
+        </div>
+        <div class="input-row">
+          <div class="input-label">
+            <div class="input-label-main"><span class="input-label-symbol">θ</span> Wsp. temp. procesu</div>
+            <div class="input-label-desc">Zależy od typu reakcji</div>
+          </div>
+          <div class="input-control">
+            <select data-in="theta">
+              <option value="1.04">Usuwanie BZT — 1,04</option>
+              <option value="1.10" selected>Nitryfikacja — 1,08-1,12</option>
+              <option value="1.07">Denitryfikacja — 1,06-1,08</option>
+              <option value="1.024">Transfer O₂ — 1,024</option>
+              <option value="1.05">Hydroliza/wzrost endog. — 1,05</option>
+            </select>
+          </div>
+        </div>
+        <div class="calc-result">
+          <div class="calc-result-label">k<sub>T</sub></div>
+          <div><span class="calc-result-value" data-out="result">—</span><span class="calc-result-unit">d⁻¹</span></div>
+          <div class="calc-result-extra" data-out="extra"></div>
+        </div>
+        <div class="interpretation" data-out="interp"></div>
+        <button class="kb-toggle">📖 Wzór i wyjaśnienie</button>
+        <div class="kb-content">
+          <div class="kb-formula">$$ k_T = k_{20} \cdot \theta^{(T-20)} $$</div>
+          <div class="kb-symbols">
+            <span class="kb-sym">k<sub>T</sub></span><span>Stała szybkości w temperaturze T</span>
+            <span class="kb-sym">θ</span><span>Współczynnik temperaturowy procesu (bezwymiarowy)</span>
+            <span class="kb-sym">T</span><span>Temperatura procesu [°C]</span>
+          </div>
+          <p><strong>Reguła kciuka:</strong> nitryfikacja w 10°C jest ok. 2× wolniejsza niż w 20°C. To dlatego zimą trzeba zwiększać SRT — wolniejsze nitryfikatory potrzebują więcej czasu, żeby nie zostać wymyte.</p>
+          <p>θ &gt; 1 = proces przyspiesza w wyższej temperaturze. Im wyższe θ, tym silniejsza zależność temperaturowa (nitryfikacja jest najbardziej "czuła").</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- C:N:P -->
+    <div class="calc-card" data-calc-id="cnp" data-calc-name="Bilans biogenny C:N:P">
+      <div class="calc-card-header">
+        <span class="calc-card-title">Bilans biogenny C : N : P</span>
+        <span class="calc-card-tag">BIOGEN</span>
+      </div>
+      <div class="calc-body">
+        <div class="input-row">
+          <div class="input-label">
+            <div class="input-label-main">Baza węglowa (parametr C)</div>
+            <div class="input-label-desc">Wybierz, co masz zmierzone</div>
+          </div>
+          <div class="input-control">
+            <select data-in="base">
+              <option value="BZT" selected>BZT₅</option>
+              <option value="ChZT">ChZT</option>
+              <option value="OWO">OWO (TOC)</option>
+            </select>
+          </div>
+        </div>
+        <div class="input-row">
+          <div class="input-label">
+            <div class="input-label-main"><span class="input-label-symbol" data-dyn="symbol">BZT₅</span> Substrat C</div>
+            <div class="input-label-desc" data-dyn="desc">Biochemiczne zapotrzebowanie tlenu (5 dni)</div>
+          </div>
+          <div class="input-control">
+            <input type="number" data-in="C" value="300" step="10">
+            <span class="input-unit">mg/L</span>
+          </div>
+        </div>
+        <div class="input-row">
+          <div class="input-label">
+            <div class="input-label-main"><span class="input-label-symbol">N<sub>og</sub></span> Azot ogólny</div>
+            <div class="input-label-desc">Lub TKN</div>
+          </div>
+          <div class="input-control">
+            <input type="number" data-in="N" value="45" step="1">
+            <span class="input-unit">mg/L</span>
+          </div>
+        </div>
+        <div class="input-row">
+          <div class="input-label">
+            <div class="input-label-main"><span class="input-label-symbol">P<sub>og</sub></span> Fosfor ogólny</div>
+            <div class="input-label-desc">Suma form</div>
+          </div>
+          <div class="input-control">
+            <input type="number" data-in="P" value="6" step="0.5">
+            <span class="input-unit">mg/L</span>
+          </div>
+        </div>
+        <div class="calc-result">
+          <div class="calc-result-label" data-out="reslabel">Stosunek BZT₅ : N : P</div>
+          <div><span class="calc-result-value" data-out="result">—</span></div>
+          <div class="calc-result-extra" data-out="extra"></div>
+        </div>
+        <div class="interpretation" data-out="interp"></div>
+        <button class="kb-toggle">📖 Wzór i wyjaśnienie</button>
+        <div class="kb-content">
+          <div class="kb-section-title">Wzór (normalizacja do C = 100)</div>
+          <div class="kb-formula">$$ C : N : P = 100 : N\cdot\tfrac{100}{C} : P\cdot\tfrac{100}{C} $$</div>
+          <div class="kb-section-title">Optimum w zależności od bazy węglowej</div>
+          <div class="kb-ranges">
+            <div class="kb-range ok"><div class="kb-range-label">BZT₅:N:P</div><div class="kb-range-value">100:5:1</div></div>
+            <div class="kb-range ok"><div class="kb-range-label">ChZT:N:P</div><div class="kb-range-value">100:5:1*</div></div>
+            <div class="kb-range ok"><div class="kb-range-label">OWO:N:P</div><div class="kb-range-value">100:11:2*</div></div>
+          </div>
+          <p style="font-size:0.8rem; color:var(--text-muted)">*Optimum dla ChZT i OWO przeliczone z klasycznego BZT₅:N:P = 100:5:1 przy typowych współczynnikach przeliczeniowych dla ścieków komunalnych.</p>
+          <div class="kb-section-title">Relacje między parametrami węglowymi</div>
+          <div class="kb-symbols">
+            <span class="kb-sym">BZT₅</span><span>Biochemiczne zapotrzebowanie tlenu (5 dni) — mierzy frakcję biodegradowalną. Klasyczna baza bilansu biogennego.</span>
+            <span class="kb-sym">ChZT</span><span>Chemiczne zapotrzebowanie tlenu — mierzy całość utlenialnej materii (biodegradowalną + inertną). Dla ścieków komunalnych ChZT ≈ 1,8-2,5 × BZT₅.</span>
+            <span class="kb-sym">OWO</span><span>Ogólny węgiel organiczny (TOC) — bezpośredni pomiar węgla. Dla ścieków komunalnych BZT₅ ≈ 2,0-2,5 × OWO; ChZT ≈ 2,5-3,5 × OWO.</span>
+          </div>
+          <div class="kb-section-title">Dlaczego baza ma znaczenie</div>
+          <p>Klasyczne optimum 100:5:1 dotyczy <strong>BZT₅</strong> — czyli węgla, który mikroorganizmy faktycznie zjedzą. Jeśli liczysz bilans na <strong>ChZT</strong>, część tego węgla jest inertna (nie służy wzrostowi biomasy), więc realne zapotrzebowanie na N i P względem ChZT jest <em>niższe</em>. Stąd przeliczenia.</p>
+          <p><strong>Reguła praktyczna:</strong> jeśli masz tylko ChZT, oszacuj BZT₅ ≈ ChZT/2 i licz klasycznie. Kalkulator robi to automatycznie w tle przy ocenie niedoborów.</p>
+          <div class="kb-section-title">Konsekwencje niedoboru</div>
+          <p>Niedobór N lub P → osad nie rośnie prawidłowo, częste filamenty (zwłaszcza <em>Sphaerotilus natans</em>, <em>typ 021N</em>, <em>Thiothrix</em>). Nadmiar P → trafia do odpływu.</p>
+          <p><strong>Przemysłowe substraty</strong> (mleczarnia, browar, cukrownia, owocowo-warzywne) są często ubogie w N i P → konieczna suplementacja mocznikiem / H₃PO₄ / kwasem fosforowym.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Nitryfikacja w warunkach min temp -->
+    <div class="calc-card" data-calc-id="srt_nit" data-calc-name="SRT min nitryfikacji">
+      <div class="calc-card-header">
+        <span class="calc-card-title">Minimalny SRT dla nitryfikacji</span>
+        <span class="calc-card-tag">NIT</span>
+      </div>
+      <div class="calc-body">
+        <div class="input-row">
+          <div class="input-label">
+            <div class="input-label-main"><span class="input-label-symbol">T</span> Temp. min. procesu</div>
+            <div class="input-label-desc">Najniższa zimowa</div>
+          </div>
+          <div class="input-control">
+            <input type="number" data-in="T" value="10" step="0.5">
+            <span class="input-unit">°C</span>
+          </div>
+        </div>
+        <div class="input-row">
+          <div class="input-label">
+            <div class="input-label-main"><span class="input-label-symbol">SF</span> Współcz. bezpiecz.</div>
+            <div class="input-label-desc">Zwykle 1,5-2,5</div>
+          </div>
+          <div class="input-control">
+            <input type="number" data-in="SF" value="2.0" step="0.1">
+            <span class="input-unit">-</span>
+          </div>
+        </div>
+        <div class="calc-result">
+          <div class="calc-result-label">SRT min projektowy</div>
+          <div><span class="calc-result-value" data-out="result">—</span><span class="calc-result-unit">dni</span></div>
+          <div class="calc-result-extra" data-out="extra"></div>
+        </div>
+        <div class="interpretation" data-out="interp"></div>
+        <button class="kb-toggle">📖 Wzór i wyjaśnienie</button>
+        <div class="kb-content">
+          <div class="kb-formula">$$ \mu_{max,T} = 0{,}47 \cdot e^{0{,}098(T-15)} $$</div>
+          <div class="kb-formula">$$ SRT_{min} = \frac{1}{\mu_{max,T} - b_n}, \quad SRT_{proj} = SF \cdot SRT_{min} $$</div>
+          <div class="kb-symbols">
+            <span class="kb-sym">μ<sub>max</sub></span><span>Maksymalna szybkość wzrostu nitryfikatorów [d⁻¹]</span>
+            <span class="kb-sym">b<sub>n</sub></span><span>Współczynnik obumierania (≈0,04 d⁻¹ w 20°C)</span>
+            <span class="kb-sym">SF</span><span>Safety Factor — zapas na wahania obciążenia i temperatury</span>
+          </div>
+          <p>Przyjęte parametry: μ<sub>max,15°C</sub> = 0,47 d⁻¹, b<sub>n,15°C</sub> = 0,04 d⁻¹, korekcja temp. θ = 1,103 (Metcalf &amp; Eddy, 2014).</p>
+          <p>W praktyce dla 10°C → SRT min ok. 5 d, projektowy 10-12 d. Dla 5°C → już 8-10 d minimum, projektowy &gt;20 d.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sprawność usuwania -->
+    <div class="calc-card" data-calc-id="eta" data-calc-name="Sprawność">
+      <div class="calc-card-header">
+        <span class="calc-card-title">η — Sprawność usuwania</span>
+        <span class="calc-card-tag">ETA</span>
+      </div>
+      <div class="calc-body">
+        <div class="input-row">
+          <div class="input-label">
+            <div class="input-label-main"><span class="input-label-symbol">C<sub>in</sub></span> Stężenie dopływ</div>
+            <div class="input-label-desc">Surowy ściek</div>
+          </div>
+          <div class="input-control">
+            <input type="number" data-in="Cin" value="300" step="5">
+            <span class="input-unit">mg/L</span>
+          </div>
+        </div>
+        <div class="input-row">
+          <div class="input-label">
+            <div class="input-label-main"><span class="input-label-symbol">C<sub>out</sub></span> Stężenie odpływ</div>
+            <div class="input-label-desc">Po oczyszczaniu</div>
+          </div>
+          <div class="input-control">
+            <input type="number" data-in="Cout" value="12" step="0.5">
+            <span class="input-unit">mg/L</span>
+          </div>
+        </div>
+        <div class="calc-result">
+          <div class="calc-result-label">Sprawność η</div>
+          <div><span class="calc-result-value" data-out="result">—</span><span class="calc-result-unit">%</span></div>
+          <div class="calc-result-extra" data-out="extra"></div>
+        </div>
+        <div class="interpretation" data-out="interp"></div>
+        <button class="kb-toggle">📖 Wzór i wyjaśnienie</button>
+        <div class="kb-content">
+          <div class="kb-formula">$$ \eta = \frac{C_{in} - C_{out}}{C_{in}} \cdot 100\% $$</div>
+          <div class="kb-section-title">Wymagania dla aglomeracji &gt;15 tys. RLM (PL/UE)</div>
+          <div class="kb-ranges">
+            <div class="kb-range"><div class="kb-range-label">BZT₅</div><div class="kb-range-value">≥90% / ≤15</div></div>
+            <div class="kb-range"><div class="kb-range-label">ChZT</div><div class="kb-range-value">≥75% / ≤125</div></div>
+            <div class="kb-range"><div class="kb-range-label">N<sub>og</sub></div><div class="kb-range-value">≥80% / ≤10</div></div>
+            <div class="kb-range"><div class="kb-range-label">P<sub>og</sub></div><div class="kb-range-value">≥85% / ≤1,0</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- =================== MODUŁ 06: RECYRKULACJA WEWNĘTRZNA / DENITRYFIKACJA =================== -->
+<section class="module" id="module-denitr">
+  <div class="module-header">
+    <div>
+      <div class="module-code">// MODULE 06</div>
+      <h2 class="module-title">Recyrkulacja wewnętrzna i denitryfikacja</h2>
+    </div>
+  </div>
+  <p class="module-intro">Bilans azotanowy w predenitryfikacji. Trzy tryby: ile IR potrzebujesz dla zadanego N-NO₃ na odpływie, jaki N-NO₃ uzyskasz przy obecnym IR, oraz wykres krzywej η<sub>DN</sub>(IR) pokazujący ekonomiczną granicę zwiększania recyrkulacji.</p>
+
+  <div class="calc-grid">
+
+    <!-- Tryb 1: Wymagane IR -->
+    <div class="calc-card" data-calc-id="ir_required" data-calc-name="IR wymagane">
+      <div class="calc-card-header">
+        <span class="calc-card-title">Tryb 1 — Ile IR potrzebuję?</span>
+        <span class="calc-card-tag">PROJEKT</span>
+      </div>
+      <div class="calc-body">
+        <div class="input-row">
+          <div class="input-label">
+            <div class="input-label-main"><span class="input-label-symbol">N<sub>nit</sub></span> Azotany wytworzone</div>
+            <div class="input-label-desc">≈ TKN dopływu − N w biomasie</div>
+          </div>
+          <div class="input-control">
+            <input type="number" data-in="Nnit" value="35" step="1">
+            <span class="input-unit">mg/L</span>
+          </div>
+        </div>
+        <div class="input-row">
+          <div class="input-label">
+            <div class="input-label-main"><span class="input-label-symbol">N<sub>NO3,e</sub></span> Cel N-NO₃ odpływ</div>
+            <div class="input-label-desc">Wartość docelowa</div>
+          </div>
+          <div class="input-control">
+            <input type="number" data-in="Ne" value="6" step="0.5">
+            <span class="input-unit">mg/L</span>
+          </div>
+        </div>
+        <div class="input-row">
+          <div class="input-label">
+            <div class="input-label-main"><span class="input-label-symbol">R</span> Recyrkulacja zewn.</div>
+            <div class="input-label-desc">RAS jako Q<sub>RAS</sub>/Q</div>
+          </div>
+          <div class="input-control">
+            <input type="number" data-in="R" value="0.8" step="0.1">
+            <span class="input-unit">-</span>
+          </div>
+        </div>
+        <div class="calc-result">
+          <div class="calc-result-label">IR wymagane</div>
+          <div><span class="calc-result-value" data-out="result">—</span><span class="calc-result-unit">-</span></div>
+          <div class="calc-result-extra" data-out="extra"></div>
+        </div>
+        <div class="interpretation" data-out="interp"></div>
+        <button class="kb-toggle">📖 Wzór i wyjaśnienie</button>
+        <div class="kb-content">
+          <div class="kb-section-title">Wzór z bilansu masowego</div>
+          <div class="kb-formula">$$ IR = \frac{N_{nit}}{N_{NO_3,e}} - 1 - R $$</div>
+          <div class="kb-section-title">Wyprowadzenie</div>
+          <p>Przepływ przez strefę DN to (1+IR+R)·Q. Azotany do DN dostają się tylko z IR i R (świeży ściek niesie NH₄, nie NO₃). Przy założeniu pełnej redukcji w DN i pełnej nitryfikacji w N:</p>
+          <div class="kb-formula">$$ N_{NO_3,e} = \frac{N_{nit}}{1 + IR + R} $$</div>
+          <p>Przekształcając do IR otrzymujemy wzór z góry.</p>
+          <div class="kb-section-title">Symbole</div>
+          <div class="kb-symbols">
+            <span class="kb-sym">IR</span><span>Stopień recyrkulacji wewnętrznej (mixed liquor) = Q<sub>IR</sub>/Q [-]</span>
+            <span class="kb-sym">R</span><span>Stopień recyrkulacji zewnętrznej (RAS) = Q<sub>RAS</sub>/Q [-]</span>
+            <span class="kb-sym">N<sub>nit</sub></span><span>Azotany wytworzone w nitryfikacji, dostępne do denitryfikacji [mg N/L]</span>
+            <span class="kb-sym">N<sub>NO₃,e</sub></span><span>Docelowe stężenie N-NO₃ na odpływie [mg N/L]</span>
+          </div>
+          <div class="kb-section-title">Granice ekonomiczne</div>
+          <div class="kb-ranges">
+            <div class="kb-range ok"><div class="kb-range-label">Standard</div><div class="kb-range-value">IR 2-3</div></div>
+            <div class="kb-range warn"><div class="kb-range-label">Granica eko.</div><div class="kb-range-value">IR 3-4</div></div>
+            <div class="kb-range err"><div class="kb-range-label">Nieopłac.</div><div class="kb-range-value">IR &gt;5</div></div>
+          </div>
+          <p>Powyżej IR ≈ 4 koszty energetyczne pomp rosną liniowo, a zysk w usuwaniu NO₃ maleje asymptotycznie. Wtedy lepszą opcją jest <strong>step-feed</strong>, <strong>zewnętrzne źródło węgla</strong> lub <strong>powiększenie strefy DN</strong>.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tryb 2: Predykcja N-NO3 -->
+    <div class="calc-card" data-calc-id="no3_predict" data-calc-name="N-NO₃ predykcja">
+      <div class="calc-card-header">
+        <span class="calc-card-title">Tryb 2 — Co dostanę przy obecnym IR?</span>
+        <span class="calc-card-tag">DIAGN</span>
+      </div>
+      <div class="calc-body">
+        <div class="input-row">
+          <div class="input-label">
+            <div class="input-label-main"><span class="input-label-symbol">N<sub>nit</sub></span> Azotany wytworzone</div>
+            <div class="input-label-desc">W nitryfikacji</div>
+          </div>
+          <div class="input-control">
+            <input type="number" data-in="Nnit" value="35" step="1">
+            <span class="input-unit">mg/L</span>
+          </div>
+        </div>
+        <div class="input-row">
+          <div class="input-label">
+            <div class="input-label-main"><span class="input-label-symbol">IR</span> Recyrk. wewn. obecna</div>
+            <div class="input-label-desc">Q<sub>IR</sub>/Q ze SCADA</div>
+          </div>
+          <div class="input-control">
+            <input type="number" data-in="IR" value="1.5" step="0.1">
+            <span class="input-unit">-</span>
+          </div>
+        </div>
+        <div class="input-row">
+          <div class="input-label">
+            <div class="input-label-main"><span class="input-label-symbol">R</span> Recyrk. zewn.</div>
+            <div class="input-label-desc">Q<sub>RAS</sub>/Q</div>
+          </div>
+          <div class="input-control">
+            <input type="number" data-in="R" value="0.8" step="0.1">
+            <span class="input-unit">-</span>
+          </div>
+        </div>
+        <hr class="calc-divider">
+        <div class="input-row">
+          <div class="input-label">
+            <div class="input-label-main"><span class="input-label-symbol">η<sub>DN,real</sub></span> Sprawność realna DN</div>
+            <div class="input-label-desc">100% = teoretyczna; 70-90% = realna</div>
+          </div>
+          <div class="input-control">
+            <input type="number" data-in="etaDN" value="100" step="5">
+            <span class="input-unit">%</span>
+          </div>
+        </div>
+        <div class="calc-result">
+          <div class="calc-result-label">Przewidywane N-NO₃ na odpływie</div>
+          <div><span class="calc-result-value" data-out="result">—</span><span class="calc-result-unit">mg/L</span></div>
+          <div class="calc-result-extra" data-out="extra"></div>
+        </div>
+        <div class="interpretation" data-out="interp"></div>
+        <button class="kb-toggle">📖 Wzór i wyjaśnienie</button>
+        <div class="kb-content">
+          <div class="kb-section-title">Wzór (max. teoretyczna sprawność)</div>
+          <div class="kb-formula">$$ \eta_{DN,max} = \frac{IR + R}{1 + IR + R} $$</div>
+          <div class="kb-formula">$$ N_{NO_3,e} = N_{nit} \cdot (1 - \eta_{DN,max} \cdot \eta_{DN,real}) $$</div>
+          <div class="kb-section-title">Symbole</div>
+          <div class="kb-symbols">
+            <span class="kb-sym">η<sub>DN,max</sub></span><span>Hydrauliczna granica sprawności denitryfikacji — wynika z bilansu mas, nie z biologii</span>
+            <span class="kb-sym">η<sub>DN,real</sub></span><span>Realna efektywność biologiczna względem max teoretycznego (zależy od C/N, O₂ w DN, HRT, T)</span>
+          </div>
+          <p><strong>Kiedy η<sub>DN,real</sub> &lt; 100%?</strong></p>
+          <ul>
+            <li>Tlen rozpuszczony w strefie DN &gt; 0,2 mg/L → bakterie wybierają O₂ zamiast NO₃</li>
+            <li>Stosunek C/N &lt; 4 (mało łatwo dostępnego węgla) → brak elektronów dla redukcji</li>
+            <li>HRT w DN za krótki (&lt;1,5 h) → bakterie nie zdążają</li>
+            <li>Niskie T (&lt;10°C) → kinetyka spada (θ ≈ 1,07)</li>
+            <li>Długi SRT, stary osad → spadek aktywności heterotrofów</li>
+          </ul>
+          <p><strong>Realne wartości:</strong> dobrze pracujące oczyszczalnie 85-95%, średnie 70-85%, problematyczne &lt;70%.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tryb 3: Krzywa η_DN(IR) -->
+    <div class="calc-card" data-calc-id="eta_curve" data-calc-name="Krzywa η(IR)" style="grid-column: 1 / -1;">
+      <div class="calc-card-header">
+        <span class="calc-card-title">Tryb 3 — Krzywa η<sub>DN</sub>(IR) — wizualizacja granicy ekonomicznej</span>
+        <span class="calc-card-tag">WYKRES</span>
+      </div>
+      <div class="calc-body">
+        <div class="input-row">
+          <div class="input-label">
+            <div class="input-label-main"><span class="input-label-symbol">R</span> Recyrk. zewn.</div>
+            <div class="input-label-desc">Q<sub>RAS</sub>/Q</div>
+          </div>
+          <div class="input-control">
+            <input type="number" data-in="R" value="0.8" step="0.1">
+            <span class="input-unit">-</span>
+          </div>
+        </div>
+        <div class="input-row">
+          <div class="input-label">
+            <div class="input-label-main"><span class="input-label-symbol">IR<sub>aktualne</sub></span> Punkt obecny (znacznik)</div>
+            <div class="input-label-desc">Pokaże pionową kreskę na wykresie</div>
+          </div>
+          <div class="input-control">
+            <input type="number" data-in="IRcur" value="1.5" step="0.1">
+            <span class="input-unit">-</span>
+          </div>
+        </div>
+        <div class="calc-result" style="padding: 0; border: none; background: transparent;">
+          <div id="etaChart" style="width: 100%; min-height: 320px; background: var(--bg); border: 2px solid var(--accent); border-left-width: 4px; padding: 1rem;"></div>
+        </div>
+        <div class="interpretation" data-out="interp"></div>
+        <button class="kb-toggle">📖 Jak czytać wykres</button>
+        <div class="kb-content">
+          <p>Wykres pokazuje, jak rośnie maksymalna teoretyczna sprawność denitryfikacji w funkcji recyrkulacji wewnętrznej IR. Trzy strefy:</p>
+          <ul>
+            <li><strong>Strefa zielona (IR 0-3):</strong> każde +0,5 IR daje istotny wzrost η. Tutaj inwestycja w pompy się zwraca.</li>
+            <li><strong>Strefa pomarańczowa (IR 3-5):</strong> przyrost η spada, ale jeszcze sensowny. Granica ekonomiczna.</li>
+            <li><strong>Strefa czerwona (IR &gt;5):</strong> asymptota do 100% — duże nakłady energetyczne, mały zysk. Lepiej pomyśleć o step-feed lub źródle węgla.</li>
+          </ul>
+          <p>Czerwony znacznik pokazuje obecny punkt pracy układu. Im bliżej asymptoty, tym mniej można "wyciągnąć" zwiększaniem IR — trzeba szukać innych rozwiązań.</p>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- =================== MODUŁ HISTORIA =================== -->
+<section class="module" id="module-historia">
+  <div class="module-header">
+    <div>
+      <div class="module-code">// LOG</div>
+      <h2 class="module-title">Historia obliczeń</h2>
+    </div>
+    <div>
+      <button class="ctrl-btn" id="exportCSV">EXPORT CSV</button>
+      <button class="ctrl-btn" id="exportJSON">EXPORT JSON</button>
+      <button class="ctrl-btn" id="clearHistory">WYCZYŚĆ</button>
+    </div>
+  </div>
+  <p class="module-intro">Zapisane wyniki obliczeń. Klikając "Zapisz wynik" w którymkolwiek kalkulatorze, dodajesz pozycję tutaj. Eksport CSV/JSON do dalszej analizy w Excelu lub LIMS.</p>
+  <div class="history-list" id="historyList">
+    <div class="empty-state">— Brak zapisanych obliczeń —<br>Wykonaj obliczenie i kliknij "ZAPISZ WYNIK"</div>
+  </div>
+</section>
+
+<!-- =================== MODUŁ INFO =================== -->
+<section class="module" id="module-info">
+  <div class="module-header">
+    <div>
+      <div class="module-code">// INFO</div>
+      <h2 class="module-title">O kalkulatorze</h2>
+    </div>
+  </div>
+  <p class="module-intro">Narzędzie z serii <strong>Kącik Technologa z przypadku</strong> — interaktywne kalkulatory dla codziennej pracy technologa oczyszczalni ścieków.</p>
+
+  <div class="calc-card" style="max-width: 720px;">
+    <div class="calc-card-header">
+      <span class="calc-card-title">Kącik Technologa // Toolkit</span>
+      <span class="calc-card-tag">v1.0</span>
+    </div>
+    <div class="calc-body">
+      <p style="margin-bottom:1rem">Kalkulator zawiera <strong>5 modułów</strong> obliczeniowych z wzorami i zakresami referencyjnymi:</p>
+      <ul style="margin-left:1.2rem; color:var(--text-dim); margin-bottom:1rem">
+        <li><strong>Osad czynny</strong> — SVI, F/M, SRT, HRT, B<sub>v</sub>, recyrkulacja</li>
+        <li><strong>Bilans tlenu</strong> — AOR, SOR, energia napowietrzania</li>
+        <li><strong>Strącanie P</strong> — dawki PIX/PAX, dodatkowy osad</li>
+        <li><strong>SBR</strong> — VER, wydajność cykli, obciążenie</li>
+        <li><strong>Kinetyka</strong> — Arrhenius, C:N:P, SRT nitryfikacji, sprawność</li>
+      </ul>
+      <p style="margin-bottom:1rem; color:var(--text-dim)">
+        Wzory pochodzą z literatury fachowej (m.in. Metcalf &amp; Eddy <em>Wastewater Engineering</em>, Henze <em>Biological Wastewater Treatment</em>, ATV-DVWK-A 131). 
+        Wartości referencyjne to zakresy literaturowe — w Twojej oczyszczalni mogą być inne ze względu na specyfikę ścieków, technologii i sezonu.
+      </p>
+      <p style="margin-bottom:1rem; color:var(--text-dim)">
+        Dane wprowadzane do kalkulatorów <strong>nie są nigdzie wysyłane</strong> — wszystko działa lokalnie w przeglądarce. Historia obliczeń zapisuje się w <code>localStorage</code> Twojej przeglądarki.
+      </p>
+      <hr class="calc-divider">
+      <p style="font-family:var(--font-mono); font-size:0.82rem; color:var(--text-muted)">
+        Autor: Tomasz Owsiak // ZWiK Prudnik<br>
+        Część serii "Z Kącika Technologa z przypadku"<br>
+        Build: 2026.05
+      </p>
+    </div>
+  </div>
+</section>
+
+</main>
+</div>
+
+<footer class="app-footer">
+  KĄCIK TECHNOLOGA Z PRZYPADKU // KALKULATOR v1.0 // 
+  Wzory oparte na literaturze fachowej. Wyniki mają charakter pomocniczy i nie zastępują projektowania inżynierskiego.
+</footer>
+
+<script>
+// ========== STAN APLIKACJI ==========
+const STORAGE_KEY = 'kt_calc_history_v1';
+const PREFS_KEY = 'kt_calc_prefs_v1';
+
+let history = [];
+try {
+  history = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+} catch(e) { history = []; }
+
+let prefs = { theme: 'dark', dyslexic: false, fontSize: 15 };
+try {
+  const saved = JSON.parse(localStorage.getItem(PREFS_KEY) || '{}');
+  prefs = { ...prefs, ...saved };
+} catch(e) {}
+
+// ========== NAWIGACJA ==========
+const navItems = document.querySelectorAll('.nav-item');
+const modules = document.querySelectorAll('.module');
+const sidebar = document.getElementById('sidebar');
+
+navItems.forEach(item => {
+  item.addEventListener('click', () => {
+    const target = item.dataset.module;
+    navItems.forEach(n => n.classList.remove('active'));
+    modules.forEach(m => m.classList.remove('active'));
+    item.classList.add('active');
+    document.getElementById('module-' + target).classList.add('active');
+    sidebar.classList.remove('open');
+    if (target === 'historia') renderHistory();
+  });
+});
+
+document.getElementById('menuToggle').addEventListener('click', () => {
+  sidebar.classList.toggle('open');
+});
+
+// ========== KONTROLKI UI ==========
+const themeBtn = document.getElementById('themeToggle');
+const dysBtn = document.getElementById('dyslexicToggle');
+const fontSizeInput = document.getElementById('fontSize');
+
+function applyPrefs() {
+  document.body.classList.toggle('theme-light', prefs.theme === 'light');
+  document.body.classList.toggle('font-dyslexic', prefs.dyslexic);
+  themeBtn.textContent = prefs.theme === 'dark' ? 'DARK' : 'LIGHT';
+  dysBtn.classList.toggle('active', prefs.dyslexic);
+  document.documentElement.style.setProperty('--font-size-base', prefs.fontSize + 'px');
+  fontSizeInput.value = prefs.fontSize;
+}
+
+function savePrefs() {
+  try { localStorage.setItem(PREFS_KEY, JSON.stringify(prefs)); } catch(e){}
+}
+
+themeBtn.addEventListener('click', () => {
+  prefs.theme = prefs.theme === 'dark' ? 'light' : 'dark';
+  applyPrefs(); savePrefs();
+});
+dysBtn.addEventListener('click', () => {
+  prefs.dyslexic = !prefs.dyslexic;
+  applyPrefs(); savePrefs();
+});
+fontSizeInput.addEventListener('input', (e) => {
+  prefs.fontSize = parseInt(e.target.value);
+  applyPrefs(); savePrefs();
+});
+
+applyPrefs();
+
+// ========== KB TOGGLES ==========
+document.querySelectorAll('.kb-toggle').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const content = btn.nextElementSibling;
+    content.classList.toggle('open');
+    btn.textContent = content.classList.contains('open')
+      ? '▲ Zwiń wzór i wyjaśnienie'
+      : '📖 Wzór i wyjaśnienie';
+  });
+});
+
+// ========== KALKULATORY ==========
+// Każdy kalkulator: zbieramy inputy → obliczamy → wyświetlamy wynik + interpretacja
+
+const CALCS = {
+  svi: {
+    compute: (i) => {
+      if (!i.MLSS || i.MLSS <= 0) return null;
+      const svi = (i.V30 / i.MLSS);
+      let interp = { text: '', cls: '' };
+      if (svi < 70) interp = { text: '⚠ Bardzo niski SVI — możliwa deflokulacja, pulverized sludge. Sprawdź obecność drobnych kłaczków, mętność odpływu.', cls: 'warn' };
+      else if (svi < 120) interp = { text: '✓ SVI w optymalnym zakresie. Osad sedymentuje prawidłowo.', cls: 'ok' };
+      else if (svi < 150) interp = { text: '⚠ SVI podwyższony — początek problemów sedymentacyjnych. Wykonaj test filamentów.', cls: 'warn' };
+      else interp = { text: '✕ Bulking sludge. Wykonaj diagnostykę filamentów (Eikelboom). Często Type 021N, S. natans, M. parvicella.', cls: 'err' };
+      return { value: svi.toFixed(1), interp, extra: `Sedymentacja: V₃₀ = ${i.V30} mL/L; MLSS = ${i.MLSS} g/L` };
+    }
+  },
+  dsvi: {
+    compute: (i) => {
+      if (!i.MLSS || i.MLSS <= 0 || !i.n || i.n < 1) return null;
+      const dsvi = (i.V30r * i.n) / i.MLSS;
+      const mlssRozc = i.MLSS / i.n;
+      let interp = { text: '', cls: '' };
+      let extra = `MLSS po rozcieńczeniu: ${mlssRozc.toFixed(2)} g/L`;
+
+      // Walidacja procedury - czy V30r jest w zalecanym zakresie
+      if (i.V30r > 250) {
+        extra += ' | ⚠ V₃₀ rozcieńczonej > 250 mL/L → rozcieńcz mocniej (zwiększ n).';
+      } else if (i.V30r < 100 && i.n > 1) {
+        extra += ' | ⚠ V₃₀ < 100 mL/L — rozcieńczyłeś za mocno, użyj mniejszego n.';
+      } else if (i.n === 1 && i.V30r <= 250) {
+        extra += ' | ℹ V₃₀ ≤ 250 — rozcieńczenie nie było potrzebne, DSVI = SVI klasyczny.';
+      }
+
+      // Interpretacja
+      if (dsvi < 80) interp = { text: '✓ Bardzo dobra sedymentacja. Osad zwarty, kłaczki duże.', cls: 'ok' };
+      else if (dsvi < 120) interp = { text: '✓ Dobra sedymentacja. Norma operacyjna.', cls: 'ok' };
+      else if (dsvi < 160) interp = { text: '⚠ Średni — początek problemów. Zrób mikroskop, sprawdź F/M i O₂ w DN.', cls: 'warn' };
+      else if (dsvi < 220) interp = { text: '⚠ Bulking. Wykonaj diagnostykę filamentów (Eikelboom + Gram + Neisser).', cls: 'warn' };
+      else interp = { text: '✕ Ciężki bulking. Tryb interwencji: skrócenie SRT, korekta O₂, ewentualnie selektor lub chlorowanie RAS.', cls: 'err' };
+
+      return { value: dsvi.toFixed(1), interp, extra };
+    }
+  },
+  fm: {
+    compute: (i) => {
+      if (!i.V || !i.X || i.V <= 0 || i.X <= 0) return null;
+      const fm = (i.Q * i.S0) / (i.V * i.X * 1000);
+      let interp = { text: '', cls: '' };
+      if (fm < 0.05) interp = { text: '⚠ Bardzo niskie F/M — system głodzony, ryzyko M. parvicella, pian, starych kłaczków.', cls: 'warn' };
+      else if (fm < 0.15) interp = { text: '✓ System niskoobciążony — odpowiedni dla nitryfikacji/EBPR.', cls: 'ok' };
+      else if (fm < 0.5) interp = { text: '✓ Konwencjonalne obciążenie. Standard dla większości komunalnych OŚ.', cls: 'ok' };
+      else interp = { text: '⚠ Wysokoobciążony — ryzyko ucieczki BZT, słabej flokulacji, brak nitryfikacji.', cls: 'warn' };
+      return { value: fm.toFixed(3), interp };
+    }
+  },
+  srt: {
+    compute: (i) => {
+      const masaWyplywu = (i.Qw * i.Xw) + (i.QeXe || 0);
+      if (masaWyplywu <= 0) return null;
+      const srt = (i.V * i.X) / masaWyplywu;
+      let interp = { text: '', cls: '' };
+      if (srt < 4) interp = { text: '⚠ Bardzo krótki SRT — tylko usuwanie C, brak nitryfikacji.', cls: 'warn' };
+      else if (srt < 8) interp = { text: '✓ Wystarczający dla nitryfikacji w temp. >15°C. Zimą może być za krótki.', cls: 'ok' };
+      else if (srt < 20) interp = { text: '✓ Bezpieczny dla nitryfikacji w warunkach komunalnych przez cały rok.', cls: 'ok' };
+      else interp = { text: '⚠ Długi SRT — sprawdź czy nie ma nadmiaru filamentów (M. parvicella lubi długi SRT).', cls: 'warn' };
+      return { value: srt.toFixed(1), interp };
+    }
+  },
+  hrt: {
+    compute: (i) => {
+      if (!i.Q || i.Q <= 0) return null;
+      const hrt = (i.V / i.Q) * 24;
+      return { value: hrt.toFixed(1), interp: {text:'', cls:''}, extra: `= ${(hrt/24).toFixed(2)} d` };
+    }
+  },
+  bv: {
+    compute: (i) => {
+      if (!i.V || i.V <= 0) return null;
+      const bv = (i.Q * i.S0) / (i.V * 1000);
+      let interp = { text: '', cls: '' };
+      if (bv < 0.4) interp = { text: '✓ Niskoobciążony reaktor.', cls: 'ok' };
+      else if (bv < 1.2) interp = { text: '✓ Konwencjonalne obciążenie.', cls: 'ok' };
+      else interp = { text: '⚠ Wysokoobciążony — wymaga sprawnego napowietrzania, ryzyko braku nitryfikacji.', cls: 'warn' };
+      return { value: bv.toFixed(2), interp };
+    }
+  },
+  ras_actual: {
+    compute: (i) => {
+      if (!i.Q || i.Q <= 0) return null;
+      const Rakt = (i.QRAS / i.Q) * 100;
+
+      // Wymagane R z bilansu mas (jeśli mamy MLSS i XR)
+      let Rwym = null;
+      let extraText = '';
+      let interp = { text: '', cls: '' };
+
+      if (i.X > 0 && i.XR > i.X) {
+        Rwym = (i.X / (i.XR - i.X)) * 100;
+        const diff = Rakt - Rwym;
+        extraText = `R wymagane = ${Rwym.toFixed(0)}% (przy MLSS=${i.X} g/L, X_R=${i.XR} g/L). Różnica: ${diff > 0 ? '+' : ''}${diff.toFixed(0)} pp.`;
+
+        if (Math.abs(diff) < 15) {
+          interp = { text: '✓ Recyrkulacja zgodna z bilansem mas. System utrzymuje docelowe MLSS.', cls: 'ok' };
+        } else if (diff > 0) {
+          interp = { text: `⚠ R za wysokie o ${diff.toFixed(0)} pp. Rozcieńczasz osad w RAS, skracasz efektywny HRT. Rozważ obniżenie Q_RAS.`, cls: 'warn' };
+        } else {
+          interp = { text: `⚠ R za niskie o ${Math.abs(diff).toFixed(0)} pp. Koc osadu w osadniku może rosnąć, MLSS spadać. Zwiększ Q_RAS lub sprawdź sedymentację (SVI).`, cls: 'warn' };
+        }
+      } else if (i.XR <= i.X && i.X > 0) {
+        interp = { text: '✕ X_R ≤ MLSS — to nie jest fizycznie możliwe przy prawidłowej sedymentacji. Sprawdź pomiar lub stan osadnika.', cls: 'err' };
+      } else {
+        // Tylko podstawowa ocena R_akt
+        if (Rakt < 30) interp = { text: '⚠ Niska recyrkulacja. Bez danych MLSS/X_R nie da się ocenić bilansu — sprawdź wysokość zwierciadła osadu.', cls: 'warn' };
+        else if (Rakt < 100) interp = { text: '✓ R w typowym zakresie operacyjnym (50-100%).', cls: 'ok' };
+        else if (Rakt < 150) interp = { text: '⚠ Wysoka recyrkulacja. Sprawdź czy uzasadniona aktualnym X_R.', cls: 'warn' };
+        else interp = { text: '✕ R > 150% — efektywny HRT bardzo skrócony. Zweryfikuj odczyt pompy.', cls: 'err' };
+      }
+
+      return { value: Rakt.toFixed(0), interp, extra: extraText };
+    }
+  },
+  ras: {
+    compute: (i) => {
+      const denom = i.XR - i.X;
+      if (denom <= 0) return null;
+      const R = (i.X / denom) * 100;
+      let interp = { text: '', cls: '' };
+      if (R < 30) interp = { text: '✓ Niska recyrkulacja — koc osadu może rosnąć. Sprawdź wysokość zwierciadła osadu w osadniku.', cls: 'ok' };
+      else if (R < 100) interp = { text: '✓ Typowy zakres recyrkulacji dla komunalnych OŚ.', cls: 'ok' };
+      else if (R < 150) interp = { text: '⚠ Wysoka recyrkulacja. Sprawdź czy X_R nie jest zbyt niski (problemy z zagęszczeniem).', cls: 'warn' };
+      else interp = { text: '✕ R > 150% — efektywny HRT bardzo skrócony, osad słabo się zagęszcza. Sprawdź SVI.', cls: 'err' };
+      return { value: R.toFixed(0), interp };
+    }
+  },
+  aor: {
+    compute: (i) => {
+      const aor = (i.a * i.Q * i.dS + 4.57 * i.Q * i.dN) / 1000 + (i.endog || 0);
+      return { value: aor.toFixed(0), interp: {text:'', cls:''}, extra: `BZT: ${(i.a*i.Q*i.dS/1000).toFixed(0)} + Nitryf: ${(4.57*i.Q*i.dN/1000).toFixed(0)} + Endog: ${(i.endog||0).toFixed(0)} kg/d` };
+    }
+  },
+  sor: {
+    compute: (i) => {
+      // Tabela rozpuszczalności O₂ w wodzie (mg/L)
+      const Cs = (T) => 14.652 - 0.41022*T + 0.0079910*T*T - 0.000077774*T*T*T;
+      const Cs20 = 9.08;
+      const CsT = Cs(i.T);
+      const denom = i.alpha * (i.beta * CsT - i.CL) * Math.pow(1.024, i.T - 20);
+      if (denom <= 0) return null;
+      const sor = i.AOR * Cs20 / denom;
+      const ratio = sor / i.AOR;
+      return { value: sor.toFixed(0), interp: {text: `Stosunek SOR/AOR = ${ratio.toFixed(2)}. Typowo 1,5-2,5.`, cls: ratio > 3 ? 'warn' : 'ok'}, extra: `C_s w ${i.T}°C ≈ ${CsT.toFixed(2)} mg/L` };
+    }
+  },
+  energy: {
+    compute: (i) => {
+      if (!i.SAE || i.SAE <= 0) return null;
+      const E = i.SOR / i.SAE;
+      const K = E * i.price;
+      return { value: E.toFixed(0), interp: {text:'', cls:''}, extra: `Koszt: ${K.toFixed(0)} zł/d ≈ ${(K*365/1000).toFixed(1)} tys. zł/rok` };
+    }
+  },
+  pix: {
+    compute: (i) => {
+      const select = document.querySelector('[data-calc-id="pix"] [data-in="coag"]');
+      const opt = select.options[select.selectedIndex];
+      const MwMe = parseFloat(opt.dataset.mw);
+      const pctMe = parseFloat(opt.dataset.pct);
+      const metal = opt.dataset.metal;
+      // m_Me [kg/d] = β × (Mw_Me/31) × Q × P / 1000
+      const mMe = i.beta * (MwMe / 31) * i.Q * i.P / 1000;
+      if (i.rho <= 0 || pctMe <= 0) return null;
+      const V = mMe / (i.rho * pctMe);
+      return {
+        value: V.toFixed(1),
+        interp: { text: `Dawka jednostkowa: ${(V*1000/i.Q).toFixed(1)} mL/m³ ścieku. Sprawdź zakres pracy pompy dozującej.`, cls: 'ok' },
+        extra: `${metal}: ${mMe.toFixed(1)} kg/d (czysty metal). Koagulant: ${(V*i.rho).toFixed(0)} kg/d`
+      };
+    }
+  },
+  osad_chem: {
+    compute: (i) => {
+      const select = document.querySelector('[data-calc-id="osad_chem"] [data-in="metal"]');
+      const factor = parseFloat(select.options[select.selectedIndex].dataset.factor);
+      const osad = i.mMe * factor;
+      return { value: osad.toFixed(0), interp: {text:'', cls:''}, extra: `Współczynnik dla ${select.value}: ${factor} kg s.m./kg metalu` };
+    }
+  },
+  ver: {
+    compute: (i) => {
+      if (i.VT <= 0) return null;
+      const ver = i.VF / i.VT;
+      let interp = { text: '', cls: '' };
+      if (ver < 0.2) interp = { text: '⚠ Niski VER — niska wydajność, ale łagodne obciążenia szokowe.', cls: 'warn' };
+      else if (ver <= 0.5) interp = { text: '✓ Optymalny zakres VER dla SBR.', cls: 'ok' };
+      else interp = { text: '⚠ Wysoki VER — duże szoki obciążeniowe na początku cyklu.', cls: 'warn' };
+      return { value: ver.toFixed(2), interp, extra: `= ${(ver*100).toFixed(0)}% objętości reaktora wymieniane w cyklu` };
+    }
+  },
+  cykle: {
+    compute: (i) => {
+      if (i.tc <= 0) return null;
+      const Qmax = i.nR * i.VF * (24 / i.tc);
+      const nCykli = 24 / i.tc;
+      return { value: Qmax.toFixed(0), interp: {text:'', cls:''}, extra: `${nCykli.toFixed(1)} cykli/reaktor × ${i.nR} reaktorów = ${(nCykli*i.nR).toFixed(0)} cykli/d` };
+    }
+  },
+  bcykl: {
+    compute: (i) => {
+      if (i.VT <= 0 || i.X <= 0) return null;
+      const fm = (i.nc * i.VF * i.S0) / (i.VT * i.X * 1000);
+      let interp = { text: '', cls: '' };
+      if (fm < 0.1) interp = { text: '✓ Niskoobciążony SBR.', cls: 'ok' };
+      else if (fm < 0.3) interp = { text: '✓ Średnioobciążony.', cls: 'ok' };
+      else interp = { text: '⚠ Wysokie obciążenie cykliczne.', cls: 'warn' };
+      return { value: fm.toFixed(3), interp };
+    }
+  },
+  arr: {
+    compute: (i) => {
+      const kT = i.k20 * Math.pow(i.theta, i.T - 20);
+      const procent = (kT / i.k20) * 100;
+      return { value: kT.toFixed(3), interp: {text:'', cls:''}, extra: `= ${procent.toFixed(0)}% szybkości referencyjnej (k₂₀)` };
+    }
+  },
+  cnp: {
+    compute: (i) => {
+      if (i.C <= 0) return null;
+
+      // Definicje baz: etykieta, symbol, opis, optimum N i P (na 100 części C)
+      const bases = {
+        BZT: {
+          symbol: 'BZT₅', desc: 'Biochemiczne zapotrzebowanie tlenu (5 dni)',
+          label: 'BZT₅ : N : P', optN: 5, optP: 1,
+          minN: 3, maxN: 8, minP: 0.5, maxP: 2,
+          optText: 'Optimum: 100:5:1 (klasyczny) lub 100:5:1,5 (z EBPR)'
+        },
+        ChZT: {
+          symbol: 'ChZT', desc: 'Chemiczne zapotrzebowanie tlenu',
+          label: 'ChZT : N : P', optN: 2.5, optP: 0.5,
+          minN: 1.5, maxN: 4, minP: 0.25, maxP: 1,
+          optText: 'Optimum ≈ 100:2,5:0,5 (przy ChZT/BZT₅ ≈ 2,0). Klasyczne 100:5:1 dla samego BZT₅.'
+        },
+        OWO: {
+          symbol: 'OWO', desc: 'Ogólny węgiel organiczny (TOC)',
+          label: 'OWO : N : P', optN: 11, optP: 2.2,
+          minN: 7, maxN: 17, minP: 1.1, maxP: 4.4,
+          optText: 'Optimum ≈ 100:11:2,2 (przy BZT₅/OWO ≈ 2,2). Bezpośredni pomiar węgla.'
+        }
+      };
+
+      const b = bases[i.base] || bases.BZT;
+      const normN = (i.N / i.C) * 100;
+      const normP = (i.P / i.C) * 100;
+
+      // Dynamiczne etykiety w UI
+      const card = document.querySelector('[data-calc-id="cnp"]');
+      if (card) {
+        const symEl = card.querySelector('[data-dyn="symbol"]');
+        const descEl = card.querySelector('[data-dyn="desc"]');
+        const labelEl = card.querySelector('[data-out="reslabel"]');
+        if (symEl) symEl.innerHTML = b.symbol;
+        if (descEl) descEl.textContent = b.desc;
+        if (labelEl) labelEl.textContent = 'Stosunek ' + b.label;
+      }
+
+      // Ocena względem właściwego optimum dla danej bazy
+      let interp = { text: '', cls: '' };
+      if (normN < b.minN) interp = { text: `✕ Niedobór azotu (${normN.toFixed(1)} < ${b.minN} na 100 ${b.symbol}). Substrat ubogi w N → suplementacja (mocznik, woda amoniakalna).`, cls: 'err' };
+      else if (normP < b.minP) interp = { text: `✕ Niedobór fosforu (${normP.toFixed(2)} < ${b.minP} na 100 ${b.symbol}). Konieczna suplementacja (H₃PO₄, KH₂PO₄).`, cls: 'err' };
+      else if (normN > b.maxN || normP > b.maxP) interp = { text: `⚠ Nadmiar biogenów względem węgla. Konieczne efektywne usuwanie N i P, ryzyko ucieczki na odpływie.`, cls: 'warn' };
+      else interp = { text: `✓ Stosunek odpowiedni dla osadu czynnego (baza: ${b.symbol}).`, cls: 'ok' };
+
+      return {
+        value: `100 : ${normN.toFixed(1)} : ${normP.toFixed(2)}`,
+        interp,
+        extra: b.optText
+      };
+    }
+  },
+  srt_nit: {
+    compute: (i) => {
+      // μmax(20°C) = 0,9 d⁻¹ (zakres 0,4-1,0), θ = 1,103
+      // b_n(20°C) = 0,17 d⁻¹, θ = 1,04
+      // Bardziej konserwatywne wartości z M&E
+      const mu_max_20 = 0.47;
+      const b_n_20 = 0.04;
+      const mu_T = mu_max_20 * Math.pow(1.103, i.T - 20);
+      const b_T = b_n_20 * Math.pow(1.029, i.T - 20);
+      const denom = mu_T - b_T;
+      if (denom <= 0) return { value: '∞', interp: { text: '✕ W tej temperaturze nitryfikacja niemożliwa kinetycznie.', cls: 'err' } };
+      const srt_min = 1 / denom;
+      const srt_proj = i.SF * srt_min;
+      return { value: srt_proj.toFixed(1), interp: {text:'', cls:''}, extra: `SRT_min = ${srt_min.toFixed(1)} d; μ_T = ${mu_T.toFixed(3)} d⁻¹` };
+    }
+  },
+  eta: {
+    compute: (i) => {
+      if (i.Cin <= 0) return null;
+      const eta = ((i.Cin - i.Cout) / i.Cin) * 100;
+      let interp = { text: '', cls: '' };
+      if (eta < 70) interp = { text: '⚠ Niska sprawność.', cls: 'err' };
+      else if (eta < 90) interp = { text: '✓ Standardowa sprawność.', cls: 'ok' };
+      else interp = { text: '✓ Bardzo dobra sprawność.', cls: 'ok' };
+      return { value: eta.toFixed(1), interp, extra: `Usunięto: ${(i.Cin - i.Cout).toFixed(1)} mg/L` };
+    }
+  },
+  ir_required: {
+    compute: (i) => {
+      if (i.Ne <= 0 || i.Nnit <= 0) return null;
+      const IR = (i.Nnit / i.Ne) - 1 - i.R;
+      let interp = { text: '', cls: '' };
+      const QIR_ratio = `Pompa IR musiałaby pracować z wydajnością ${(IR*100).toFixed(0)}% przepływu dopływu Q.`;
+      if (IR <= 0) {
+        interp = { text: '✓ Sama recyrkulacja zewnętrzna wystarcza — IR teoretycznie niepotrzebne. Sprawdź założenia.', cls: 'ok' };
+        return { value: '≤0', interp, extra: QIR_ratio };
+      }
+      if (IR <= 3) interp = { text: '✓ Wykonalne ekonomicznie. Standardowy zakres dla predenitryfikacji.', cls: 'ok' };
+      else if (IR <= 5) interp = { text: '⚠ Na granicy opłacalności. Rozważ również step-feed lub większą strefę DN.', cls: 'warn' };
+      else interp = { text: '✕ Nieekonomicznie wysokie IR. Konieczne inne rozwiązania: zewnętrzny węgiel, step-feed, powiększenie DN.', cls: 'err' };
+      return { value: IR.toFixed(2), interp, extra: QIR_ratio };
+    }
+  },
+  no3_predict: {
+    compute: (i) => {
+      const denom = 1 + i.IR + i.R;
+      if (denom <= 0 || i.Nnit <= 0) return null;
+      const etaMax = (i.IR + i.R) / denom;
+      const etaRealFrac = (i.etaDN || 100) / 100;
+      const etaEff = etaMax * etaRealFrac;
+      const Ne = i.Nnit * (1 - etaEff);
+      let interp = { text: '', cls: '' };
+      const limit10 = 10 - 0.5 - 1.5; // 10 mg N_og minus NH4 (~0.5) i N_org (~1.5)
+      if (Ne <= limit10 * 0.7) interp = { text: '✓ Z dużym zapasem do limitu 10 mg N_og.', cls: 'ok' };
+      else if (Ne <= limit10) interp = { text: '⚠ Mieścisz się w limicie, ale zapas mały. Każde zaburzenie może wybić poza normę.', cls: 'warn' };
+      else interp = { text: '✕ Powyżej limitu N-NO₃ dla normy 10 mg N_og/L. Konieczna interwencja.', cls: 'err' };
+      return {
+        value: Ne.toFixed(2),
+        interp,
+        extra: `η_DN,max teoret. = ${(etaMax*100).toFixed(1)}%; η efektywna (×${etaRealFrac.toFixed(2)}) = ${(etaEff*100).toFixed(1)}%`
+      };
+    }
+  },
+  eta_curve: {
+    compute: (i) => {
+      drawEtaCurve(i.R, i.IRcur);
+      const denom = 1 + i.IRcur + i.R;
+      const etaCur = denom > 0 ? (i.IRcur + i.R) / denom : 0;
+      let interp = { text: '', cls: '' };
+      if (i.IRcur < 2) interp = { text: `Punkt pracy IR=${i.IRcur.toFixed(1)} → η_max=${(etaCur*100).toFixed(0)}%. Strefa zielona — zwiększanie IR jeszcze opłacalne.`, cls: 'ok' };
+      else if (i.IRcur < 4) interp = { text: `IR=${i.IRcur.toFixed(1)} → η_max=${(etaCur*100).toFixed(0)}%. Strefa optimum — typowy zakres pracy.`, cls: 'ok' };
+      else if (i.IRcur < 6) interp = { text: `IR=${i.IRcur.toFixed(1)} → η_max=${(etaCur*100).toFixed(0)}%. Strefa granicy ekonomicznej — rozważ alternatywy.`, cls: 'warn' };
+      else interp = { text: `IR=${i.IRcur.toFixed(1)} → η_max=${(etaCur*100).toFixed(0)}%. Strefa nieopłacalna — step-feed lub węgiel zewnętrzny lepsze niż dalsze pompowanie.`, cls: 'err' };
+      return { value: '', interp, extra: '' };
+    }
+  }
+};
+
+// Rysowanie krzywej η_DN(IR) jako inline SVG
+function drawEtaCurve(R, IRcur) {
+  const container = document.getElementById('etaChart');
+  if (!container) return;
+
+  // Wymiary
+  const W = 720, H = 320;
+  const padL = 60, padR = 30, padT = 25, padB = 50;
+  const plotW = W - padL - padR;
+  const plotH = H - padT - padB;
+
+  // Zakres osi
+  const xMax = 10; // IR od 0 do 10
+  const yMax = 100; // η w %
+
+  // Kolory motywu
+  const styles = getComputedStyle(document.body);
+  const cAccent = styles.getPropertyValue('--accent').trim() || '#d29922';
+  const cText = styles.getPropertyValue('--text').trim() || '#c9d1d9';
+  const cTextDim = styles.getPropertyValue('--text-dim').trim() || '#8b949e';
+  const cBorder = styles.getPropertyValue('--border').trim() || '#30363d';
+  const cOk = styles.getPropertyValue('--ok').trim() || '#3fb950';
+  const cWarn = styles.getPropertyValue('--warn').trim() || '#db6d28';
+  const cErr = styles.getPropertyValue('--err').trim() || '#f85149';
+
+  // Skale
+  const sx = (ir) => padL + (ir / xMax) * plotW;
+  const sy = (eta) => padT + (1 - eta / yMax) * plotH;
+
+  // Wzór η = (IR+R)/(1+IR+R), η w %
+  const etaAt = (IR) => 100 * (IR + R) / (1 + IR + R);
+
+  // Punkty krzywej
+  let pathD = '';
+  for (let k = 0; k <= 200; k++) {
+    const ir = (k / 200) * xMax;
+    const eta = etaAt(ir);
+    pathD += (k === 0 ? 'M' : 'L') + sx(ir).toFixed(1) + ',' + sy(eta).toFixed(1) + ' ';
+  }
+
+  // Granice stref na osi X
+  const zone1End = sx(3);  // zielona 0-3
+  const zone2End = sx(5);  // pomarańczowa 3-5
+  // czerwona 5-10
+
+  // Linie siatki Y co 10%
+  let gridY = '';
+  for (let y = 0; y <= 100; y += 10) {
+    gridY += `<line x1="${padL}" y1="${sy(y)}" x2="${W-padR}" y2="${sy(y)}" stroke="${cBorder}" stroke-width="0.5" opacity="0.5"/>`;
+    gridY += `<text x="${padL-8}" y="${sy(y)+4}" fill="${cTextDim}" font-size="11" font-family="monospace" text-anchor="end">${y}</text>`;
+  }
+  // Siatka X co 1
+  let gridX = '';
+  for (let x = 0; x <= 10; x++) {
+    gridX += `<line x1="${sx(x)}" y1="${padT}" x2="${sx(x)}" y2="${H-padB}" stroke="${cBorder}" stroke-width="0.5" opacity="0.3"/>`;
+    gridX += `<text x="${sx(x)}" y="${H-padB+18}" fill="${cTextDim}" font-size="11" font-family="monospace" text-anchor="middle">${x}</text>`;
+  }
+
+  // Punkt obecny
+  const etaCur = etaAt(IRcur);
+  const xCur = sx(Math.min(IRcur, xMax));
+  const yCur = sy(etaCur);
+
+  // Strefy w tle (kolorowe pasy)
+  const zonesBg = `
+    <rect x="${padL}" y="${padT}" width="${zone1End - padL}" height="${plotH}" fill="${cOk}" opacity="0.06"/>
+    <rect x="${zone1End}" y="${padT}" width="${zone2End - zone1End}" height="${plotH}" fill="${cWarn}" opacity="0.08"/>
+    <rect x="${zone2End}" y="${padT}" width="${(W-padR) - zone2End}" height="${plotH}" fill="${cErr}" opacity="0.08"/>
+  `;
+
+  // Etykiety stref
+  const zoneLabels = `
+    <text x="${(padL + zone1End)/2}" y="${padT+15}" fill="${cOk}" font-size="10" font-family="monospace" text-anchor="middle" opacity="0.8">EKO</text>
+    <text x="${(zone1End + zone2End)/2}" y="${padT+15}" fill="${cWarn}" font-size="10" font-family="monospace" text-anchor="middle" opacity="0.8">GRANICA</text>
+    <text x="${(zone2End + W - padR)/2}" y="${padT+15}" fill="${cErr}" font-size="10" font-family="monospace" text-anchor="middle" opacity="0.8">NIEOPŁAC.</text>
+  `;
+
+  // Asymptota 100%
+  const asympt = `<line x1="${padL}" y1="${sy(100)}" x2="${W-padR}" y2="${sy(100)}" stroke="${cTextDim}" stroke-width="1" stroke-dasharray="4,3" opacity="0.6"/>
+    <text x="${W-padR-5}" y="${sy(100)-5}" fill="${cTextDim}" font-size="10" font-family="monospace" text-anchor="end">asymptota η=100%</text>`;
+
+  // Etykiety osi
+  const labels = `
+    <text x="${padL + plotW/2}" y="${H-10}" fill="${cText}" font-size="12" font-family="monospace" text-anchor="middle">IR  =  Q_IR / Q  [-]</text>
+    <text x="15" y="${padT + plotH/2}" fill="${cText}" font-size="12" font-family="monospace" text-anchor="middle" transform="rotate(-90, 15, ${padT + plotH/2})">η_DN,max  [%]</text>
+  `;
+
+  // Marker punktu pracy
+  const marker = `
+    <line x1="${xCur}" y1="${padT}" x2="${xCur}" y2="${H-padB}" stroke="${cErr}" stroke-width="1.5" stroke-dasharray="3,3" opacity="0.8"/>
+    <line x1="${padL}" y1="${yCur}" x2="${xCur}" y2="${yCur}" stroke="${cErr}" stroke-width="1.5" stroke-dasharray="3,3" opacity="0.6"/>
+    <circle cx="${xCur}" cy="${yCur}" r="6" fill="${cErr}" stroke="${cText}" stroke-width="2"/>
+    <text x="${xCur+10}" y="${yCur-8}" fill="${cErr}" font-size="12" font-family="monospace" font-weight="700">IR=${IRcur.toFixed(1)} → η=${etaCur.toFixed(0)}%</text>
+  `;
+
+  // Tytuł
+  const title = `<text x="${W/2}" y="${padT-8}" fill="${cAccent}" font-size="11" font-family="monospace" text-anchor="middle" letter-spacing="2">η_DN,max(IR) przy R = ${R.toFixed(2)}</text>`;
+
+  // Krzywa
+  const curve = `<path d="${pathD}" stroke="${cAccent}" stroke-width="2.5" fill="none"/>`;
+
+  // Ramka
+  const frame = `<rect x="${padL}" y="${padT}" width="${plotW}" height="${plotH}" fill="none" stroke="${cBorder}" stroke-width="1"/>`;
+
+  container.innerHTML = `<svg viewBox="0 0 ${W} ${H}" width="100%" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">
+    ${zonesBg}
+    ${gridY}${gridX}
+    ${frame}
+    ${zoneLabels}
+    ${asympt}
+    ${curve}
+    ${marker}
+    ${labels}
+    ${title}
+  </svg>`;
+}
+
+// ========== ZBIERANIE INPUTÓW I OBLICZANIE ==========
+function collectInputs(card) {
+  const inputs = {};
+  card.querySelectorAll('[data-in]').forEach(el => {
+    const key = el.dataset.in;
+    if (el.tagName === 'SELECT') inputs[key] = el.value;
+    else inputs[key] = parseFloat(el.value) || 0;
+  });
+  return inputs;
+}
+
+function renderResult(card, result) {
+  const valEl = card.querySelector('[data-out="result"]');
+  const extraEl = card.querySelector('[data-out="extra"]');
+  const interpEl = card.querySelector('[data-out="interp"]');
+  if (!result) {
+    if (valEl) valEl.textContent = '—';
+    if (extraEl) extraEl.textContent = '';
+    if (interpEl) { interpEl.textContent = '⚠ Sprawdź dane wejściowe'; interpEl.className = 'interpretation warn'; }
+    return;
+  }
+  if (valEl) valEl.textContent = result.value;
+  if (extraEl) extraEl.textContent = result.extra || '';
+  if (interpEl && result.interp) {
+    interpEl.textContent = result.interp.text;
+    interpEl.className = 'interpretation ' + (result.interp.cls || '');
+    interpEl.style.display = result.interp.text ? 'block' : 'none';
+  }
+}
+
+function recalc(card) {
+  const id = card.dataset.calcId;
+  if (!CALCS[id]) return;
+  const inputs = collectInputs(card);
+  const result = CALCS[id].compute(inputs);
+  renderResult(card, result);
+}
+
+document.querySelectorAll('.calc-card').forEach(card => {
+  // Wstaw przycisk zapisu (pomiń karty-wykresy bez data-out="result")
+  const body = card.querySelector('.calc-body');
+  const hasResultField = card.querySelector('[data-out="result"]');
+  if (card.dataset.calcId && body && hasResultField && !card.querySelector('.save-btn')) {
+    const saveBtn = document.createElement('button');
+    saveBtn.className = 'save-btn';
+    saveBtn.textContent = '💾 Zapisz wynik do historii';
+    saveBtn.addEventListener('click', () => saveToHistory(card));
+    body.appendChild(saveBtn);
+  }
+
+  card.querySelectorAll('[data-in]').forEach(el => {
+    el.addEventListener('input', () => recalc(card));
+    el.addEventListener('change', () => recalc(card));
+  });
+  recalc(card);
+});
+
+// ========== HISTORIA ==========
+function saveToHistory(card) {
+  const id = card.dataset.calcId;
+  const name = card.dataset.calcName;
+  const inputs = collectInputs(card);
+  const valEl = card.querySelector('[data-out="result"]');
+  const unitEl = card.querySelector('.calc-result-unit');
+  const value = valEl.textContent;
+  const unit = unitEl ? unitEl.textContent.trim() : '';
+  if (value === '—') {
+    alert('Brak prawidłowego wyniku do zapisania.');
+    return;
+  }
+  history.unshift({
+    id, name, value, unit,
+    inputs,
+    timestamp: new Date().toISOString()
+  });
+  if (history.length > 500) history = history.slice(0, 500);
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(history)); } catch(e) { alert('Nie udało się zapisać (localStorage pełny?).'); }
+
+  // Mini feedback
+  const btn = card.querySelector('.save-btn');
+  const orig = btn.textContent;
+  btn.textContent = '✓ ZAPISANO';
+  btn.style.background = 'var(--ok)';
+  setTimeout(() => { btn.textContent = orig; btn.style.background = ''; }, 1500);
+}
+
+function renderHistory() {
+  const list = document.getElementById('historyList');
+  if (history.length === 0) {
+    list.innerHTML = '<div class="empty-state">— Brak zapisanych obliczeń —<br>Wykonaj obliczenie i kliknij "ZAPISZ WYNIK"</div>';
+    return;
+  }
+  list.innerHTML = history.map((h, idx) => {
+    const date = new Date(h.timestamp);
+    const dateStr = date.toLocaleString('pl-PL', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+    const inputsStr = Object.entries(h.inputs).map(([k,v]) => `${k}=${v}`).join(', ');
+    return `
+      <div class="history-item">
+        <span class="history-date">${dateStr}</span>
+        <span class="history-calc"><strong>${h.name}</strong><br><small style="color:var(--text-muted);font-family:var(--font-mono);font-size:0.75rem">${inputsStr}</small></span>
+        <span class="history-value">${h.value} ${h.unit}</span>
+        <button class="history-del" data-idx="${idx}">×</button>
+      </div>
+    `;
+  }).join('');
+  list.querySelectorAll('.history-del').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const idx = parseInt(btn.dataset.idx);
+      history.splice(idx, 1);
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(history)); } catch(e){}
+      renderHistory();
+    });
+  });
+}
+
+// ========== EXPORT ==========
+function downloadFile(filename, content, type) {
+  const blob = new Blob([content], { type });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
+}
+
+document.getElementById('exportCSV').addEventListener('click', () => {
+  if (history.length === 0) { alert('Brak danych do eksportu.'); return; }
+  // Zbierz wszystkie klucze inputów
+  const allKeys = new Set();
+  history.forEach(h => Object.keys(h.inputs).forEach(k => allKeys.add(k)));
+  const inputKeys = Array.from(allKeys);
+  const header = ['data_iso', 'kalkulator', 'wynik', 'jednostka', ...inputKeys];
+  const rows = history.map(h => [
+    h.timestamp,
+    h.name,
+    h.value,
+    h.unit,
+    ...inputKeys.map(k => h.inputs[k] !== undefined ? h.inputs[k] : '')
+  ]);
+  const csv = [header, ...rows].map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(';')).join('\r\n');
+  downloadFile(`kalkulator_historia_${new Date().toISOString().slice(0,10)}.csv`, '\ufeff' + csv, 'text/csv;charset=utf-8');
+});
+
+document.getElementById('exportJSON').addEventListener('click', () => {
+  if (history.length === 0) { alert('Brak danych do eksportu.'); return; }
+  downloadFile(`kalkulator_historia_${new Date().toISOString().slice(0,10)}.json`, JSON.stringify(history, null, 2), 'application/json');
+});
+
+document.getElementById('clearHistory').addEventListener('click', () => {
+  if (history.length === 0) return;
+  if (confirm('Usunąć całą historię obliczeń? Tej operacji nie można cofnąć.')) {
+    history = [];
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(history)); } catch(e){}
+    renderHistory();
+  }
+});
+
+</script>
+</body>
+</html>
